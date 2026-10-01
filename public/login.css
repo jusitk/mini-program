@@ -1,0 +1,107 @@
+/* ============================================================================
+ * login.css —— 登录页（深色 + 金线，居中卡片）
+ * ========================================================================== */
+
+body.login-page {
+  /* min-height 而不是 height：小屏/横屏手机放不下时**允许上下滚动**，
+     绝不把登录按钮切在屏幕外面（现场用手机开后台就会遇到） */
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp24);
+  background: var(--bg-deep);
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* 屏幕太矮时（比如手机横屏）改成顶部对齐，避免上下都被切掉 */
+@media (max-height: 620px) {
+  body.login-page { align-items: flex-start; padding-top: var(--sp16); }
+}
+
+.login-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(216, 178, 60, 0.12), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 85% 110%, rgba(90, 169, 230, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--bg), var(--bg-deep));
+  pointer-events: none;
+}
+
+.login-box {
+  position: relative;
+  width: 100%;
+  max-width: var(--sp420);
+  min-width: var(--sp300);
+  padding: var(--sp28) var(--sp28) var(--sp20);
+  background: linear-gradient(180deg, rgba(11, 17, 32, 0.96), rgba(8, 12, 22, 0.96));
+  border: 1px solid var(--line);
+  border-radius: var(--r8);
+  box-shadow: 0 var(--sp18) var(--sp50) rgba(0, 0, 0, 0.55);
+}
+
+.login-head { text-align: center; margin-bottom: var(--sp22); }
+
+/* 校徽 + 校名：用 width + aspect-ratio 定比例（原图 1024×265）。
+   为什么要写 aspect-ratio：图片加载前浏览器不知道固有比例，只给 width 时高度会先按
+   "方形"预留，加载完再跳一下；写上比例就不会跳。
+   登录页是深色底，原图暗金 #a88858 对比度只有约 2.5:1，提亮到亮金才看得清。 */
+.login-logo {
+  width: var(--sp250);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1024 / 265;
+  margin: 0 auto var(--sp12);
+  display: block;
+  object-fit: contain;
+  filter: brightness(1.5) saturate(1.05);
+}
+
+.login-head h1 {
+  font-size: var(--sp22);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.login-sub {
+  margin: var(--sp6) 0 0;
+  font-size: var(--sp13_5);
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+.login-form { display: flex; flex-direction: column; gap: var(--sp14); }
+
+.field { display: flex; flex-direction: column; gap: var(--sp6); }
+.field .label { font-size: var(--sp13_5); color: var(--ink-2); letter-spacing: 0.03em; }
+.field .input { font-size: var(--sp16); }
+
+.login-msg {
+  min-height: var(--sp20);
+  font-size: var(--sp13_5);
+  color: var(--danger);
+  line-height: 1.45;
+}
+.login-msg.is-ok { color: var(--live); }
+.login-msg:empty { min-height: 0; }
+
+.login-btn {
+  width: 100%;
+  min-height: var(--sp46);
+  font-size: var(--sp17);
+  letter-spacing: 0.2em;
+  margin-top: var(--sp4);
+}
+
+.login-foot {
+  margin-top: var(--sp20);
+  padding-top: var(--sp14);
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--sp12_5);
+  color: var(--ink-3);
+  line-height: 1.9;
+  text-align: center;
+}

@@ -1,0 +1,318 @@
+/* ============================================================================
+ * base.css —— 设计令牌 + 基础排版（大屏 / 后台 / 录入 / 登录 / 打印 共用）
+ *
+ * 【视觉方向：参照学校官方颁奖屏与录入后台】
+ *   大屏：深藏蓝底 + 金线；顶部左边校徽与会名，中间"正在进行"条，右边大时钟；
+ *         主体是多张圆角浅底卡片；名次用金/银/铜圆角方块；底部一条公告横幅。
+ *   后台：亮色（白底浅灰卡片）+ 品牌棕金标题 + 页签 + 左侧项目列表 + 右侧录入区；
+ *         成绩输入框成功态是浅绿框，右侧配"清空"按钮。
+ *
+ * 【多比例屏幕适配的核心约定，改之前先读完】
+ * 1. 所有尺寸都写成「设计像素 × var(--s)」。--s 由 JS 按屏幕算出：
+ *      基准 1920×1080 → 1 设计像素 = 1 CSS 像素
+ *      实际 = (屏幕短边 ÷ 1080) × 长宽比补偿 × 显示模式倍数
+ * 2. 字号/间距用 JS 预算好的 --spN（带单位）。**不要**在 CSS 里写
+ *    calc(数字 * 变量) —— 在网格轨道里会被当成「数字×数字」，整条声明失效（踩过）。
+ * 3. --sp* 在这里给了 1080p 兜底值，JS 没跑起来版面也不会塌。
+ * ========================================================================== */
+
+:root {
+  /* ══ 大屏（暗） ═══════════════════════════════════════════════════════ */
+  /* 底：藏蓝渐变（参考图中心偏亮、边缘更深，电视上不刺眼） */
+  --bg:          #0a1730;
+  --bg-deep:     #061024;
+  --bg-glow:     #16305c;
+
+  /* 卡片：半透明白叠加出来的浅色玻璃感 */
+  --card:        rgba(255, 255, 255, 0.055);
+  --card-2:      rgba(255, 255, 255, 0.085);
+  --card-solid:  #12254a;      /* 需要实底时用（例如输入框） */
+  --card-head:   rgba(255, 255, 255, 0.075);
+  --card-line:   rgba(255, 255, 255, 0.12);
+  --card-line-2: rgba(255, 255, 255, 0.07);
+
+  --line:      rgba(255, 255, 255, 0.14);
+  --line-soft: rgba(255, 255, 255, 0.08);
+
+  --ink:   #ffffff;
+  --ink-2: #d3ddf0;   /* 次要（班级） */
+  --ink-3: #93a4c4;   /* 说明、标签 */
+  --ink-4: #64769a;   /* 极弱（单位、占位） */
+
+  /* 金：标题、名次、成绩数字 */
+  --gold:        #e3bf69;
+  --gold-bright: #f6dc9c;
+  --gold-deep:   #b98f3a;
+  --gold-line:   rgba(227, 191, 105, 0.45);
+  --gold-bg:     rgba(227, 191, 105, 0.14);
+
+  /* 名次徽标：参考图是"金/银/铜 圆角方块 + 深色字" */
+  --medal-1:     #e6c063;
+  --medal-2:     #c3ccdb;
+  --medal-3:     #cf9a6b;
+  --medal-1-ink: #2b2000;
+  --medal-2-ink: #1c2333;
+  --medal-3-ink: #2a1608;
+  --medal-bg:    rgba(255, 255, 255, 0.09);   /* 4 名以后 */
+  --medal-ink:   #cfd8ea;
+
+  /* 成绩数字（参考图是亮金色，最醒目） */
+  --score:      #f0cc72;
+
+  --live:      #45c98a;
+  --live-bg:   rgba(69, 201, 138, 0.16);
+  --done:      #93a4c4;
+  --warn:      #e8a33d;
+  --danger:    #e2604f;
+  --info:      #6fb2ea;
+  --ok-bg:     rgba(69, 201, 138, 0.14);
+  --warn-bg:   rgba(232, 163, 61, 0.16);
+  --danger-bg: rgba(226, 96, 79, 0.16);
+
+  /* ══ 后台（亮） ═══════════════════════════════════════════════════════ */
+  --l-bg:        #eef1f6;   /* 页面底：浅灰蓝 */
+  --l-surface:   #ffffff;   /* 卡片 */
+  --l-surface-2: #f6f8fb;   /* 卡片内浅层（表头、分组条） */
+  --l-surface-3: #eaeef5;
+  --l-line:      #dbe2ec;
+  --l-line-soft: #e8edf4;
+
+  --l-ink:   #1b2437;   /* 主文字 */
+  --l-ink-2: #4a5a75;   /* 次要 */
+  --l-ink-3: #7d8ba3;   /* 说明 */
+  --l-ink-4: #a6b1c4;   /* 占位 */
+
+  /* 品牌色：参考图顶栏的校徽与标题是棕金 */
+  --brand:      #8a6a2f;
+  --brand-2:    #a8843c;
+  --brand-bg:   #f5f0e4;
+  --l-nav:      #0f1c33;   /* 顶栏深色 */
+
+  --l-blue:     #2f6fd0;   /* 页签选中、链接 */
+  --l-blue-bg:  #eaf1fd;
+  --l-green:    #1f9d63;   /* 录入成功 */
+  --l-green-bg: #eefaf3;
+  --l-green-line:#a9dfc4;
+  --l-red:      #d24b3e;
+  --l-amber:    #b7791f;
+  --l-amber-bg: #fdf6e8;
+
+  /* ── 字体 ───────────────────────────────────────────────────────────── */
+  /* 只列系统自带字体：不引任何外部资源，断外网也要能用 */
+  --font-cn: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB",
+             "Source Han Sans SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;
+  --font-num: "Consolas", "Cascadia Mono", "SF Mono", "DejaVu Sans Mono",
+              "Courier New", monospace;   /* 成绩/名次/总分必须能对齐成列 */
+  --font: var(--font-cn);
+
+  /* ── 尺寸缩放（--s 由 JS 覆写；这里是 1080p 兜底） ──────────────────── */
+  --s: 1;
+  --sp1: 1px;  --sp2: 2px;  --sp3: 3px;  --sp4: 4px;  --sp5: 5px;
+  --sp6: 6px;  --sp7: 7px;  --sp8: 8px;  --sp9: 9px;  --sp10: 10px;
+  --sp11: 11px; --sp12: 12px; --sp14: 14px; --sp16: 16px; --sp18: 18px;
+  --sp20: 20px; --sp22: 22px; --sp24: 24px; --sp26: 26px; --sp28: 28px;
+  --sp30: 30px; --sp34: 34px; --sp38: 38px; --sp42: 42px; --sp48: 48px;
+  --sp56: 56px; --sp64: 64px; --sp72: 72px; --sp88: 88px;
+
+  /* 圆角（参考图卡片是大圆角、名次块是小圆角） */
+  --r2: 2px; --r3: 3px; --r4: 4px; --r6: 6px; --r8: 8px; --r10: 10px; --r14: 14px;
+  --shadow:      0 6px 24px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 2px 10px rgba(16, 30, 60, 0.08);
+  --shadow-card: 0 1px 3px rgba(16, 30, 60, 0.06), 0 8px 24px rgba(16, 30, 60, 0.05);
+
+  --ctl-h: 40px;      /* 触屏最小可点高度（设计像素） */
+  --safe: var(--sp10);
+}
+
+/* 户外模式：提亮文字、加粗描边感、加大安全边距（防电视过扫描切边） */
+html.mode-outdoor {
+  --ink:   #ffffff;
+  --ink-2: #e2eaf8;
+  --ink-3: #adbcd8;
+  --card:      rgba(255, 255, 255, 0.075);
+  --card-head: rgba(255, 255, 255, 0.10);
+  --card-line: rgba(255, 255, 255, 0.18);
+  --line:      rgba(255, 255, 255, 0.20);
+  --gold:      #eecb74;
+  --gold-bright: #ffe9ae;
+  --score:     #ffd97f;
+  --bg:        #0c1c3a;
+  --bg-deep:   #071228;
+  --safe: var(--sp20);
+}
+
+html.mode-huge {
+  --ink:   #ffffff;
+  --ink-2: #eef3ff;
+  --ink-3: #c2cfe6;
+  --card:      rgba(255, 255, 255, 0.095);
+  --card-head: rgba(255, 255, 255, 0.125);
+  --card-line: rgba(255, 255, 255, 0.24);
+  --line:      rgba(255, 255, 255, 0.26);
+  --gold:      #f5d888;
+  --gold-bright: #fff2c8;
+  --score:     #ffe29a;
+  --bg:        #0d1f42;
+  --bg-deep:   #08142c;
+  --safe: var(--sp30);
+}
+
+/* ══ 基础重置 ═══════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; min-height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--sp16);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 数字一律等宽 + 表格数字，保证按列对齐 */
+.num, .tnum, td.num, .mono {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; line-height: 1.25; }
+p { margin: 0 0 0.6em; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-bright); text-decoration: underline; }
+img { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; color: inherit; }
+ul, ol { margin: 0; padding-left: 1.2em; }
+
+::selection { background: var(--gold); color: #17223a; }
+
+::-webkit-scrollbar { width: var(--sp10); height: var(--sp10); }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.04); }
+::-webkit-scrollbar-thumb { background: rgba(150, 175, 215, 0.3); border-radius: var(--sp5); }
+::-webkit-scrollbar-thumb:hover { background: rgba(150, 175, 215, 0.5); }
+
+/* 仅供屏幕阅读器/自动化测试读取的隐藏文本 */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ══ 大屏常用元件 ═══════════════════════════════════════════════════════ */
+
+/* 小节标题：左侧一竖条金线（参考图卡片标题就是这个样子） */
+.sec-title { display: flex; align-items: center; gap: var(--sp8); font-weight: 700; letter-spacing: 0.02em; }
+.sec-title::before {
+  content: ""; width: var(--sp4); align-self: stretch; min-height: var(--sp15);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-deep));
+  border-radius: var(--r2); flex: 0 0 auto;
+}
+
+/* 面板底部一条渐隐金线 */
+.goldline-bottom { position: relative; }
+.goldline-bottom::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-line) 14%, var(--gold-line) 86%, transparent);
+  pointer-events: none;
+}
+
+.tag {
+  display: inline-flex; align-items: center; gap: var(--sp4);
+  padding: var(--sp2) var(--sp8);
+  border-radius: var(--r3);
+  font-size: var(--sp12_5); line-height: 1.5;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.tag-live    { color: var(--live); background: var(--live-bg); border-color: rgba(69, 201, 138, 0.4); }
+.tag-done    { color: var(--ink-3); background: rgba(255, 255, 255, 0.07); border-color: var(--card-line); }
+.tag-pending { color: var(--info); background: rgba(111, 178, 234, 0.14); border-color: rgba(111, 178, 234, 0.32); }
+.tag-warn    { color: var(--warn); background: var(--warn-bg); border-color: rgba(232, 163, 61, 0.38); }
+.tag-danger  { color: var(--danger); background: var(--danger-bg); border-color: rgba(226, 96, 79, 0.38); }
+.tag-gold    { color: var(--gold); background: var(--gold-bg); border-color: var(--gold-line); }
+
+.dot-live {
+  width: var(--sp7); height: var(--sp7); border-radius: 50%;
+  background: var(--live); flex: 0 0 auto;
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(69, 201, 138, 0.6); }
+  70%  { box-shadow: 0 0 0 var(--sp7) rgba(69, 201, 138, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(69, 201, 138, 0); }
+}
+
+.muted   { color: var(--ink-3); }
+.dim     { color: var(--ink-4); }
+.empty   { color: var(--ink-4); text-align: center; padding: var(--sp24) var(--sp12); font-size: var(--sp14); }
+.right   { text-align: right; }
+.center  { text-align: center; }
+.nowrap  { white-space: nowrap; }
+.hidden  { display: none !important; }
+
+/* ══ 后台常用元件（亮色皮肤：同名类在 admin.css 里按亮色重定义变量） ══ */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp6);
+  min-height: calc(var(--ctl-h) * var(--s));
+  padding: 0 var(--sp14);
+  background: var(--panel-btn, rgba(255, 255, 255, 0.08));
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r6);
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.btn:hover  { background: var(--panel-btn-hover, rgba(255, 255, 255, 0.14)); }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #241c05; border-color: var(--gold); font-weight: 700;
+}
+.btn-primary:hover { background: linear-gradient(180deg, #ffe9ae, var(--gold-bright)); }
+.btn-danger  { background: var(--danger-bg); color: var(--danger); border-color: rgba(226, 96, 79, 0.45); }
+.btn-ghost   { background: transparent; }
+.btn-sm      { min-height: var(--sp30); padding: 0 var(--sp10); font-size: var(--sp13); }
+
+.input, .select, .textarea {
+  width: 100%;
+  min-height: calc(var(--ctl-h) * var(--s));
+  padding: var(--sp6) var(--sp10);
+  background: var(--panel-input, rgba(0, 0, 0, 0.22));
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r4);
+  outline: none;
+}
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 var(--sp2) rgba(227, 191, 105, 0.22);
+}
+.input::placeholder { color: var(--ink-4); }
+.input:disabled, .select:disabled { opacity: 0.55; cursor: not-allowed; }
+.textarea { min-height: var(--sp80); resize: vertical; font-family: inherit; }
+.input-editable { border-color: var(--gold-line); background: var(--gold-bg); }
+.input-editable:hover { border-color: var(--gold); }
+
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.grid { width: 100%; border-collapse: collapse; font-size: var(--sp14); }
+table.grid th, table.grid td {
+  padding: var(--sp7) var(--sp10);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left; vertical-align: middle;
+}
+table.grid th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--panel-th, rgba(255, 255, 255, 0.06));
+  color: var(--ink-2); font-weight: 700; white-space: nowrap;
+  border-bottom-color: var(--line);
+}
+table.grid tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+table.grid td.num, table.grid th.num { text-align: right; }
+
+/* ── 打印：A4 白底黑字（成绩单用） ─────────────────────────────────────── */
+@media print {
+  :root { --safe: 0px; }
+  html, body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
+}

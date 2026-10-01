@@ -1,0 +1,47 @@
+{
+  "name": "sports-score-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "运动会成绩实时统计与大屏展示系统（联网版 · 从零重写）",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "comment": "engines 写 >=22.5 是因为 node:sqlite（DatabaseSync）从 22.5 开始有；而 sqlite.backup() 是 22.16 才进 22.x 分支，所以 src/db.js 里对 backup 做了能力探测（没有就退回 checkpoint + 复制文件）。启动时 tools/check-node.js 会实测这些 API，别只看版本号。",
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "dev": "node --no-warnings server.js",
+    "deploy": "node --no-warnings tools/deploy.js",
+    "deploy:check": "node --no-warnings tools/deploy.js --check",
+    "firewall": "node --no-warnings tools/deploy.js --firewall-only",
+    "autostart": "node --no-warnings tools/deploy.js --autostart",
+    "test": "node --no-warnings test/run.js",
+    "test:unit": "node --no-warnings test/run.js --only=unit",
+    "test:engine": "node --no-warnings test/run.js --only=engine",
+    "test:api": "node --no-warnings test/run.js --only=api",
+    "test:ops": "node --no-warnings test/run.js --only=ops",
+    "test:data": "node --no-warnings test/run.js --only=data",
+    "test:static": "node --no-warnings test/run.js --only=static",
+    "check": "node --no-warnings tools/check-frontend.js && node --no-warnings tools/check-imports.js && node --no-warnings tools/check-consistency.js && node --no-warnings tools/check-bat.js && node --no-warnings tools/sql-check.js && node --no-warnings tools/check-css-grid.js",
+    "check:sql": "node --no-warnings tools/sql-check.js",
+    "check:css": "node --no-warnings tools/check-css-grid.js",
+    "check:bat": "node --no-warnings tools/check-bat.js",
+    "check:import": "node --no-warnings tools/check-import-export.js",
+    "myip": "node --no-warnings tools/my-ip.js",
+    "reset:password": "node --no-warnings tools/reset-password.js",
+    "reset:meet": "node --no-warnings tools/reset-meet.js",
+    "load:roster": "node --no-warnings tools/load-roster.js",
+    "check:patch": "node --no-warnings tools/check-patch.js",
+    "check:browser": "node --no-warnings tools/browser-check.js",
+    "check:node": "node --no-warnings tools/check-node.js",
+    "make:test": "node --no-warnings tools/make-test-copy.js",
+    "seed:fake": "node --no-warnings tools/seed-fake-meet.js"
+  },
+  "keywords": [
+    "运动会",
+    "成绩",
+    "大屏",
+    "sports-meet"
+  ],
+  "license": "UNLICENSED"
+}

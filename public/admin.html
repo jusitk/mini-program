@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>运动会计分 · 录入后台</title>
+<!--
+  后台样式是**独立一套**（admin.css），不复用大屏的 base.css：
+  两边的视觉方向完全不同（大屏深色要看远处、后台亮色要长时间盯着录入），
+  而且独立之后后台不再依赖 --s 缩放变量，缩小窗口或换屏幕都不会变形。
+-->
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <!-- ══ 顶栏 ══ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <!-- 校徽 + 校名（跟大屏用同一张图，换 logo 只要替换 public/img/school-logo.webp）。
+           顶栏是深色底，原图暗金要提亮才看得清（见 admin.css 的 .topbar-logo）。
+           只给 height，宽度按原图比例自动算。 -->
+      <img class="topbar-logo" src="img/school-logo.webp" data-optional-img alt="" decoding="async">
+      <span class="topbar-title">运动会计分 · 录入后台</span>
+    </div>
+    <div class="topbar-right">
+      <span class="meet" id="navMeet"></span>
+      <span class="conn" id="conn"><i class="dot"></i><span id="connText">连接中…</span></span>
+      <!-- 你在输入时数据有更新 → 这里提示"待显示"，离开输入框立刻更新（见 admin-core.js） -->
+      <span class="update-hint" id="updateHint" hidden>↑ 有更新待显示</span>
+      <!-- 断网时成绩先存本机，这里显示还有几条没交上去（点一下可手动重试）。
+           少了它，裁判会以为断网期间录的都交上去了 —— 见 admin-core.js 的注释 -->
+      <button class="queue-hint" id="queueHint" type="button" hidden></button>
+      <a class="linkbtn" href="/screen" target="_blank">打开大屏</a>
+      <span class="role-badge" id="roleBadge"></span>
+      <span class="who" id="whoami"></span>
+      <button class="linkbtn" id="btnPwd" type="button">改口令</button>
+      <button class="linkbtn" id="btnLogout" type="button">退出</button>
+    </div>
+  </header>
+
+  <!-- ══ 暂存条 ══ -->
+  <div class="stagebar" id="stageBar">
+    <span class="badge" id="stageCount">0</span>
+    <span class="stage-text" id="stageText">没有任何未确认的改动</span>
+    <span class="spacer"></span>
+    <button class="btn" id="btnStageList" type="button">查看待确认</button>
+    <button class="btn" id="btnPreview" type="button">预览效果</button>
+    <button class="btn btn-danger" id="btnDiscard" type="button">放弃全部改动</button>
+    <button class="btn btn-primary" id="btnConfirm" type="button">确认修改并推送大屏</button>
+  </div>
+
+  <!-- ══ 页签：常用的（录入/成绩/公告/聊天）排左边 ══
+       手机上是横向滑动的（data-allow-overflow 告诉版面体检"这里的溢出是有意的"）
+       注：`checkin` 页签已按用户要求去掉。检录的数据与接口照旧保留，
+           录入页里每个项目仍有检录入口（开/停检录、点名）。 -->
+  <nav class="tabs" id="tabs" data-allow-overflow>
+    <button class="tab is-on" data-tab="entry" type="button">成绩录入</button>
+    <button class="tab" data-tab="results" type="button">成绩与名次</button>
+    <button class="tab" data-tab="notice" type="button">公告</button>
+    <button class="tab" data-tab="chat" type="button">聊天室<em class="badge-inline" id="chatBadge" hidden>0</em></button>
+    <button class="tab" data-tab="events" type="button">赛程编排</button>
+    <button class="tab" data-tab="roster" type="button">运动员名单</button>
+    <button class="tab" data-tab="settings" type="button">导入与设置</button>
+    <button class="tab" data-tab="team" type="button">班级总分</button>
+    <button class="tab" data-tab="backup" type="button">备份与导出</button>
+    <button class="tab" data-tab="accounts" type="button">账号</button>
+    <button class="tab" data-tab="audit" type="button">操作记录</button>
+  </nav>
+
+  <!-- ══ 各页签内容（一次只显示一个） ══ -->
+  <main class="content" id="content">
+    <div class="pane is-on" data-pane="entry" id="paneEntry"></div>
+    <div class="pane" data-pane="results" id="paneResults"></div>
+    <div class="pane" data-pane="notice" id="paneNotice"></div>
+    <div class="pane" data-pane="chat" id="paneChat"></div>
+    <div class="pane" data-pane="events" id="paneEvents"></div>
+    <div class="pane" data-pane="roster" id="paneRoster"></div>
+    <div class="pane" data-pane="settings" id="paneSettings"></div>
+    <div class="pane" data-pane="team" id="paneTeam"></div>
+    <div class="pane" data-pane="backup" id="paneBackup"></div>
+    <div class="pane" data-pane="accounts" id="paneAccounts"></div>
+    <div class="pane" data-pane="audit" id="paneAudit"></div>
+  </main>
+
+  <!-- ══ 弹层 ══ -->
+  <div class="modal" id="previewModal" hidden>
+    <div class="modal-box wide">
+      <div class="modal-head">
+        <h3>预览：确认后会变成什么样</h3>
+        <button class="modal-x" id="previewClose" type="button">×</button>
+      </div>
+      <div class="modal-body" id="previewBody"></div>
+      <div class="modal-foot">
+        <span class="muted" id="previewNote"></span>
+        <button class="btn" id="previewClose2" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="stageModal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>待确认的改动</h3>
+        <button class="modal-x" id="stageClose" type="button">×</button>
+      </div>
+      <div class="modal-body" id="stageBody"></div>
+      <div class="modal-foot">
+        <span class="muted">这些改动还没有生效，大屏上看不到。</span>
+        <button class="btn" id="stageClose2" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="askModal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="askTitle">确认</h3>
+        <button class="modal-x" id="askClose" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="askText" class="ask-text"></p>
+        <div class="field" id="askField" hidden>
+          <label class="label" id="askLabel"></label>
+          <input class="input" id="askInput" type="text" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="askCancel" type="button">取消</button>
+        <button class="btn btn-primary" id="askOk" type="button">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toastWrap"></div>
+  <div id="layout-report" class="hidden-text" aria-hidden="true"></div>
+
+  <script src="common.js"></script>
+  <!-- DOM 打补丁工具：原地更新而不重建，避免录入时闪屏/丢焦点（见 dom.js 注释） -->
+  <script src="dom.js"></script>
+  <!-- 增量合并（纯函数，可单测）：服务端推来的补丁怎么并进本地快照 -->
+  <script src="snapshot-merge.js"></script>
+  <!-- 名单导入的解析与列名识别（前后端同一套规则；Node 下也能 require 来测） -->
+  <script src="roster-import.js"></script>
+  <script src="admin-core.js"></script>
+  <script src="admin-entry.js"></script>
+  <script src="admin-roster.js"></script>
+  <script src="admin-events.js"></script>
+  <script src="admin-results.js"></script>
+  <script src="admin-misc.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

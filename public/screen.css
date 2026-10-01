@@ -1,0 +1,1030 @@
+/* ============================================================================
+ * screen.css —— 大屏（深藏蓝 + 金，户外远看）
+ *
+ * 【尺寸体制】沿用 --s：所有尺寸 = 设计像素 × --s。--s 由 common.js 的 pxScale()
+ *   按"屏幕短边 + 宽高比"算好后写在 <html> 的行内样式上，所以从 1366×768 到 4K、
+ *   21:9 超宽、竖屏拼接墙都是同一套代码自适应。
+ *
+ * 【绝不能做的事（踩过坑，改之前先看）】
+ *   · 网格轨道里不写 calc(数字 * var(--s))，也别把 calc() 存进自定义属性再放进轨道
+ *     → 整条 grid-template-columns 会被判无效、网格塌成一列。列宽一律由 JS 写 px。
+ *   · 行高不用 flex:1 1 0 + min-height:0 → 会被压成 0 高度、文字重叠。用 min-height 兜底。
+ *   · 内联 SVG 必须写死宽高（见 screen.html），否则会被按内在尺寸撑开、撑爆抬头。
+ *
+ * 【版面】抬头 / 主体 / 底部公告，三行；右下角悬浮控件（鼠标静止自动隐藏）。
+ * ========================================================================== */
+
+/* ── 页面骨架 ─────────────────────────────────────────────────────────── */
+
+body.screen {
+  display: grid;
+  /* 三行：抬头 / 主体吃满剩余 / 底部公告。0 的最小值防止内容把行撑破 */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100vh;
+  overflow: hidden;
+  padding: var(--safe);
+  /* 顶层公告（重要公告）会盖住抬头：给它留出高度，别让它压在会名上 */
+  padding-top: calc(var(--safe) + 44px);
+  background:
+    radial-gradient(ellipse 130% 90% at 50% -20%, var(--bg-glow) 0%, var(--bg) 42%, var(--bg-deep) 100%);
+  background-attachment: fixed;
+
+  /* 名次行的固定列宽：由 common.js 的 pxScale() 写成**像素值**，这里只给兜底 */
+  --col-rank: 30px;
+  --col-team: 150px;
+  --col-score: 120px;
+  --col-pts: 70px;
+  --col-time: 66px;
+}
+/* 没有重要公告时不留那 44px（加上这个 class 由 JS 控制） */
+body.screen.no-marquee { padding-top: var(--safe); }
+
+/* 极淡的底纹：给大面积深色一点质感，不干扰读数 */
+body.screen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .022) 1px, transparent 1px);
+  background-size: var(--sp64) var(--sp64);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 20%, transparent 85%);
+}
+
+/* ══ 抬头 ═══════════════════════════════════════════════════════════════ */
+
+.top {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  /* 三列：左 = 单位标识+会名，中 = 正在进行，右 = 时钟。
+   *
+   * 【怎么定的】一个长会名（实测用的是一所中学的全称 + "2026年阳光体育班级联赛"，
+   *   约 20 字）在 1080p 上是 42px 字号、要 808px；标识图 215px。
+   *   原来左列按 1.25fr 只分到 727px，会名被截成"××中学202…"（实测）；
+   *   改用 max-content 又反过来把中间的"正在进行"挤成"初一…"（也实测过）。
+   *   所以这里给左列**封顶 900px**、并允许会名换行：
+   *   1080p 上会名正好排两行（屏幕大、两行完全看得清），
+   *   中间那一栏因此能保住约 330px，项目名不再被截。
+   *   窄屏 / 竖屏另有比例分配的档，见文件末尾的媒体查询。 */
+  grid-template-columns: minmax(0, min(900px, 58vw)) minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: var(--sp20);
+  padding: var(--sp12) var(--sp8) var(--sp14);
+  min-width: 0;
+}
+.top::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-line) 14%, var(--gold-line) 86%, transparent);
+}
+
+.top-left { min-width: 0; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: var(--sp14); min-width: 0; overflow: hidden; }
+
+/* 校徽 + 校名图片（学校正式标识，透明底 WebP，原图 1024×265）
+ *
+ * 三个必须注意的点（第一个踩过）：
+ *  ① **必须显式写 aspect-ratio**。只给 height 让它自己算宽度是不可靠的：
+ *     图片还没加载完时浏览器不知道固有比例，会先按很宽的尺寸布局，
+ *     结果是 logo 被放大到冲掉整个抬头（实测校名被截成"山东省实"）。
+ *     写上比例后，加载前预留的位置就是对的。
+ *  ② 只给 height + aspect-ratio，**不要写死 width** —— 换一张别的比例的图
+ *     只要改这一行 aspect-ratio，不会像写死 width 那样被拉变形。
+ *  ③ brightness 提到 1.45：原图是 #a88858 暗金，直接放在深蓝底上对比度只有约 2.5:1，
+ *     发闷；提亮后是亮金，跟主题的 --gold 一致，远处也看得清。
+ *
+ * 以后换 logo：把新图覆盖 public/img/school-logo.webp，
+ * 如果新图比例不是 1024:265，就改这里的 aspect-ratio（两处：这里和窄屏那一档）。 */
+.brand-logo {
+  flex: 0 0 auto;
+  height: var(--sp56);
+  width: auto;
+  aspect-ratio: var(--logo-ratio);
+  max-width: min(var(--sp216), 100%);   /* 100% 兜底：列比 logo 窄时收缩，别撑破抬头 */
+  max-height: var(--sp56);
+  display: block;
+  object-fit: contain;
+  filter: brightness(1.45) saturate(1.05);
+}
+html.mode-outdoor .brand-logo,
+html.mode-huge .brand-logo {
+  filter: brightness(1.6) saturate(1.05);
+}
+
+.brand-text { min-width: 0; overflow: hidden; }
+.brand-meet {
+  font-size: var(--sp40);
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1.15;
+  color: #fff;
+  /* 允许换行：会名放不下时排两行，比截断好得多
+     （大屏上离得远，两行完全看得清；截断反而让人以为名字就那几个字） */
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 var(--sp2) var(--sp10) rgba(0, 0, 0, .45);
+}
+.brand-sub {
+  margin-top: var(--sp3);
+  font-size: var(--sp15);
+  letter-spacing: .1em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 中间：正在进行 ───────────────────────────────────────────────────── */
+
+.top-mid { min-width: 0; display: flex; justify-content: center; overflow: hidden; }
+.live-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp12);
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--sp9) var(--sp18);
+  background: linear-gradient(90deg, rgba(227, 191, 105, .14), rgba(255, 255, 255, .05));
+  border: 1px solid var(--gold-line);
+  border-left: var(--sp4) solid var(--gold);
+  border-radius: var(--r6);
+  overflow: hidden;
+}
+.live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp6);
+  flex: 0 0 auto;
+  font-size: var(--sp14);
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--gold-bright);
+  white-space: nowrap;
+}
+.live-pin {
+  width: var(--sp9);
+  height: var(--sp9);
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 var(--sp10) var(--live);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+
+.live-name {
+  font-size: var(--sp21);
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.live-meta {
+  font-size: var(--sp13_5);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.live-pager { display: inline-flex; gap: var(--sp5); flex: 0 0 auto; }
+.live-pager i {
+  width: var(--sp7);
+  height: var(--sp7);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .22);
+}
+.live-pager i.on { background: var(--gold); box-shadow: 0 0 var(--sp8) var(--gold); }
+
+/* ── 右侧：时钟 + 连接状态 ────────────────────────────────────────────── */
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp18);
+  min-width: 0;
+  justify-content: flex-end;
+}
+.clock { text-align: right; flex: 0 0 auto; }
+.clock-time {
+  font-size: var(--sp46);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .02em;
+  color: var(--gold-bright);
+  text-shadow: 0 0 var(--sp24) rgba(227, 191, 105, .28);
+}
+.clock-date {
+  margin-top: var(--sp4);
+  font-size: var(--sp14);
+  letter-spacing: .08em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.top-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp4);
+  min-width: 0;
+}
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp6);
+  font-size: var(--sp13);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.conn-dot {
+  width: var(--sp8);
+  height: var(--sp8);
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 var(--sp8) var(--live);
+}
+.conn.is-off .conn-dot { background: var(--warn); box-shadow: none; }
+.conn.is-bad { color: #ffc9c5; }
+.conn.is-bad .conn-dot { background: var(--danger); box-shadow: 0 0 var(--sp8) var(--danger); }
+.top-stat { font-size: var(--sp12_5); color: var(--ink-4); white-space: nowrap; }
+
+/* ══ 主体：左成绩 + 右侧栏 ══════════════════════════════════════════════ */
+
+.stage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .42fr);
+  gap: var(--sp14);
+  padding: var(--sp4) var(--sp8) var(--sp10);
+  min-height: 0;
+  min-width: 0;
+}
+
+/* 面板外壳：圆角卡片 + 顶栏，高度由 JS 按实测写死 */
+.card-face {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: linear-gradient(180deg, var(--card-head), var(--card) 26%);
+  border: 1px solid var(--card-line);
+  border-radius: var(--r8);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-face.is-paused { border-color: var(--gold-line); }
+.card-face.is-paused .panel-pause {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-color: rgba(232, 163, 61, .5);
+}
+.card-face.is-paused .board-title::before { background: var(--warn); }
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp14);
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ── 面板标题行 ───────────────────────────────────────────────────────── */
+
+.board-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp10);
+  padding: var(--sp9) var(--sp14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .015));
+  border-bottom: 1px solid var(--card-line);
+  min-width: 0;
+}
+.board-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp8);
+  flex: 0 0 auto;
+  font-size: var(--sp19);
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.board-title::before {
+  content: "";
+  width: var(--sp4);
+  height: var(--sp17);
+  border-radius: var(--r2);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-deep));
+}
+.board-sub {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--sp12_5);
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board-tools { flex: 0 0 auto; display: flex; align-items: center; gap: var(--sp5); }
+.pager { display: inline-flex; gap: var(--sp4); margin-right: var(--sp4); }
+.pager i {
+  width: var(--sp6);
+  height: var(--sp6);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .2);
+}
+.pager i.on { background: var(--gold); }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sp24);
+  height: var(--sp24);
+  padding: 0;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--card-line);
+  border-radius: var(--r4);
+  color: var(--ink-2);
+  font-size: var(--sp14);
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.icon-btn:hover { background: var(--gold-bg); color: var(--gold-bright); border-color: var(--gold-line); }
+.panel-pause { letter-spacing: -.1em; }
+
+/* ── 面板内容区 ───────────────────────────────────────────────────────── */
+
+.board-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--sp10) var(--sp12);
+  overflow: hidden;
+}
+.side-body { padding: var(--sp7) var(--sp10); }
+/* 侧栏面板的滚动提示（"▼ 还有 N 条"）是绝对定位的，挂到 .board-body 上时
+   需要一个定位上下文，否则会跑到整页左上角 */
+.board-body { position: relative; }
+.pts-track { display: flex; flex-direction: column; }
+
+/* 成绩区的卡片网格：列宽与卡高都由 JS 写 px */
+.grid-cards {
+  display: flex;
+  gap: var(--sp10);
+  min-height: 0;
+  min-width: 0;
+}
+.grid-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp10);
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── 项目卡片 ─────────────────────────────────────────────────────────── */
+
+/* 项目卡片刻意用**块级布局**（而不是纵向 flex）：
+   纵向 flex 会把 .card-scroller 当成可压缩的 flex 项，导致名次行被压缩成
+   贴着 min-height 的细条（实测每行只有 25px、一屏只显示 1 行）。
+   块级布局下卡片高度由 JS 写死，滚动区只按 height 裁切，行高永远正常。
+
+   contain: paint 是**关键**：它把卡片声明成一个独立的绘制容器，
+   卡片里超出的名次行（滚动轨道比可视区高一截）绝对不会画到卡片外面去。
+   只靠 overflow:hidden 在某些情况下仍会漏出（实测卡片之间出现过残影）。 */
+.event-card {
+  position: relative;
+  contain: paint;
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border: 1px solid var(--card-line);
+  border-radius: var(--r6);
+  overflow: hidden;
+}
+/* 卡片左侧一条细金线：一眼区分"这是项目卡片" */
+.event-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sp3);
+  background: linear-gradient(180deg, var(--gold), transparent 78%);
+  opacity: .5;
+}
+.event-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp10);
+  padding: var(--sp9) var(--sp12) var(--sp7) var(--sp14);
+  min-width: 0;
+}
+.event-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--sp22);
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-kind {
+  flex: 0 0 auto;
+  padding: var(--sp2) var(--sp9);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r3);
+  background: var(--gold-bg);
+  color: var(--gold-bright);
+  font-size: var(--sp12_5);
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.event-meta {
+  flex: 0 0 auto;
+  padding: 0 var(--sp12) var(--sp6) var(--sp14);
+  font-size: var(--sp12_5);
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 名次行滚动区：用**原生滚动**（scrollTop），可视区之外的行浏览器根本不绘制。
+   注意 overflow-y 必须是 auto/scroll（不能是 hidden），否则 scrollTop 无效。 */
+.card-scroller {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;            /* 大屏上不要滚动条 */
+  overscroll-behavior: contain;
+}
+.card-scroller::-webkit-scrollbar { width: 0; height: 0; }
+.card-track { display: flex; flex-direction: column; }
+.event-body { padding: 0 var(--sp7) var(--sp6) var(--sp10); }
+
+/* 尊重系统的"减弱动态效果"：
+   一是照顾看久了会晕的人；二是截图/录屏时不会有半帧的位移残留。
+   注意只关掉"位移类"动画，跑马灯与公告滚动仍保留（那是必要的信息展示）。 */
+@media (prefers-reduced-motion: reduce) {
+  .card-track { transition: none; }
+  .live-pin { animation: none; }
+}
+
+/* 静态帧模式（?nofx=1 或截图工具用）：**所有**动画停住并回到起点。
+   用途：抓图/录屏/自动化断言时，避免抓在动画中途，看到"上一帧的残影"。 */
+body.is-static-frame *, body.is-static-frame *::before, body.is-static-frame *::after {
+  animation: none !important;
+  transition: none !important;
+}
+body.is-static-frame .marquee-text { transform: translateX(0); }
+body.is-static-frame .notice-text.is-scrolling { transform: translateX(0); }
+
+/* 卡片底部提示做**悬浮层**（绝对定位在卡片底部）：
+   它是"还有 N 条名次"这种附加信息，绝不能参与文档流 ——
+   否则它会把卡片内容撑高、名次行溢出卡片（实测过）。
+   悬浮层还有个好处：滚动时它始终钉在卡片底部，一眼能看到。 */
+.scroll-hint {
+  position: absolute;
+  left: var(--sp14);
+  right: var(--sp12);
+  bottom: var(--sp3);
+  z-index: 3;
+  font-size: var(--sp11_5);
+  color: var(--gold);
+  opacity: .9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  /* 压在名次行上面时给一层底色，避免和数字叠着看不清 */
+  background: linear-gradient(90deg, rgba(10, 23, 48, .92), rgba(10, 23, 48, 0));
+  padding-top: var(--sp2);
+}
+
+/* ── 名次行 ───────────────────────────────────────────────────────────── */
+
+/* 名次 / 姓名(+号码) / 单位 / 成绩。
+   单位与成绩两列用 minmax(…, auto) 做成可收缩：窄栏里若写死固定宽度，
+   人名列会被压成 0（实测过），宁可让单位列收窄。 */
+.row {
+  display: grid;
+  grid-template-columns: var(--col-rank) minmax(0, 1fr) minmax(0, var(--col-team)) minmax(0, auto);
+  align-items: center;
+  gap: var(--sp8);
+  /* 行高下限用**固定 px**（32），不再乘 --s。
+     踩过的坑：原来写 var(--sp36)，而 1920×1080 上 --s 只有 0.695，
+     实际只有 25px —— 名次行被压成细条，一屏看不到几行，
+     现场反馈"卡片太小、滚动像没生效"。
+     --s 是给"远处看得清"放大用的；缩到很小就是另一回事了，
+     所以下限必须钉死。字号仍随 --s 走，观感不会突兀。 */
+  min-height: 32px;
+  padding: var(--sp2) var(--sp6);
+  border-radius: var(--r4);
+  overflow: hidden;
+}
+.row + .row { border-top: 1px solid rgba(255, 255, 255, .05); }
+
+.rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sp26);
+  height: var(--sp26);
+  border-radius: var(--r4);
+  background: var(--medal-bg);
+  color: var(--medal-ink);
+  font-family: var(--font-num);
+  font-size: var(--sp17);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.row.top1 .rank {
+  background: linear-gradient(180deg, #f0d488, var(--medal-1));
+  color: var(--medal-1-ink);
+  box-shadow: 0 0 var(--sp14) rgba(230, 192, 99, .35);
+}
+.row.top2 .rank { background: linear-gradient(180deg, #dfe6f0, var(--medal-2)); color: var(--medal-2-ink); }
+.row.top3 .rank { background: linear-gradient(180deg, #e0b389, var(--medal-3)); color: var(--medal-3-ink); }
+.row.top1 { background: linear-gradient(90deg, rgba(230, 192, 99, .1), transparent 70%); }
+.row.top2 { background: linear-gradient(90deg, rgba(195, 204, 219, .07), transparent 70%); }
+.row.top3 { background: linear-gradient(90deg, rgba(207, 154, 107, .07), transparent 70%); }
+
+.who { min-width: 0; display: flex; align-items: baseline; gap: var(--sp7); }
+.who .bib {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--sp13);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+.who .name {
+  min-width: 0;
+  font-size: var(--sp19);
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row .legs {
+  margin-top: var(--sp1);
+  font-size: var(--sp11_5);
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row .team {
+  font-size: var(--sp14);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row .score {
+  justify-self: end;
+  font-family: var(--font-num);
+  font-size: var(--sp21);
+  font-weight: 700;
+  color: var(--score);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.row .score.is-dnf { color: var(--danger); font-size: var(--sp16); font-family: var(--font); }
+/* 有接力小字时，姓名列要能放两行 */
+.row:has(.legs) { align-items: start; }
+
+/* ── 右侧：赛程 ───────────────────────────────────────────────────────── */
+
+.sched-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp12);
+  padding: var(--sp7) var(--sp10);
+  border: 1px solid transparent;
+  border-radius: var(--r4);
+  min-width: 0;
+}
+.sched-item + .sched-item { border-top: 1px solid rgba(255, 255, 255, .05); }
+.sched-item.is-next {
+  background: linear-gradient(90deg, rgba(227, 191, 105, .14), transparent 85%);
+  border-color: var(--gold-line);
+}
+.sched-time {
+  flex: 0 0 var(--col-time);
+  font-family: var(--font-num);
+  font-size: var(--sp21);
+  font-weight: 700;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+.sched-item.is-next .sched-time { color: #fff; }
+.sched-main { min-width: 0; }
+.sched-name {
+  font-size: var(--sp17);
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sched-meta {
+  margin-top: var(--sp1);
+  font-size: var(--sp12_5);
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 右侧：班级总分 ───────────────────────────────────────────────────── */
+
+.grade-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp10);
+  padding: var(--sp4) var(--sp10) var(--sp6);
+  border-bottom: 1px solid var(--card-line);
+  font-size: var(--sp15);
+  font-weight: 700;
+  color: var(--gold-bright);
+  letter-spacing: .06em;
+}
+.grade-line .n { font-size: var(--sp12); font-weight: 400; color: var(--ink-4); }
+
+.pts-row {
+  display: grid;
+  grid-template-columns: var(--col-rank) minmax(0, 1fr) auto minmax(0, var(--col-pts));
+  align-items: center;
+  gap: var(--sp8);
+  padding: var(--sp5) var(--sp10);
+  border-radius: var(--r4);
+  overflow: hidden;
+}
+.pts-row + .pts-row { border-top: 1px solid rgba(255, 255, 255, .05); }
+.pts-row.top1 { background: linear-gradient(90deg, rgba(230, 192, 99, .12), transparent 72%); }
+.pts-row.top2 { background: linear-gradient(90deg, rgba(195, 204, 219, .08), transparent 72%); }
+.pts-row.top3 { background: linear-gradient(90deg, rgba(207, 154, 107, .08), transparent 72%); }
+.pts-row .rank {
+  width: var(--sp22);
+  height: var(--sp22);
+  font-size: var(--sp14);
+}
+.pts-row.top1 .rank { background: linear-gradient(180deg, #f0d488, var(--medal-1)); color: var(--medal-1-ink); }
+.pts-row.top2 .rank { background: linear-gradient(180deg, #dfe6f0, var(--medal-2)); color: var(--medal-2-ink); }
+.pts-row.top3 .rank { background: linear-gradient(180deg, #e0b389, var(--medal-3)); color: var(--medal-3-ink); }
+.pts-row .cls {
+  min-width: 0;
+  font-size: var(--sp16);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pts-row .medals { display: inline-flex; gap: var(--sp5); flex: 0 0 auto; }
+.pts-row .medals i {
+  width: var(--sp21);
+  height: var(--sp21);
+  border-radius: 50%;
+  font-family: var(--font-num);
+  font-size: var(--sp12);
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #17203a;
+  font-weight: 700;
+}
+.pts-row .medals .m1 { background: var(--medal-1); }
+.pts-row .medals .m2 { background: var(--medal-2); }
+.pts-row .medals .m3 { background: var(--medal-3); }
+.pts-row .pts {
+  justify-self: end;
+  font-family: var(--font-num);
+  font-size: var(--sp21);
+  font-weight: 700;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 空状态与标签 ─────────────────────────────────────────────────────── */
+
+.empty {
+  padding: var(--sp18) var(--sp12);
+  text-align: center;
+  font-size: var(--sp14);
+  color: var(--ink-4);
+}
+
+/* ── "成绩录入中"（没录全时不挂名次，只显示进度）────────────────────────
+   为什么要这块：一个项目 20 人只录了 3 个就把名次挂出去，
+   大屏前的人会当成最终结果。所以没录全时**不显示名次行**，
+   改显示"录到第几个了" —— 既诚实，又让观众知道还要等一会儿。 */
+.recording {
+  padding: var(--sp14) var(--sp12);
+  text-align: center;
+}
+.recording .rec-title {
+  font-size: var(--sp15);
+  color: var(--ink-3);
+  letter-spacing: .08em;
+}
+.recording .rec-num {
+  margin: var(--sp6) 0 var(--sp3);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: var(--sp34);
+  font-weight: 700;
+  color: var(--brand-2);
+  line-height: 1.15;
+}
+.recording .rec-hint {
+  font-size: var(--sp13);
+  color: var(--ink-4);
+}
+.tag {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: var(--sp1) var(--sp7);
+  border: 1px solid var(--card-line);
+  border-radius: var(--r3);
+  font-size: var(--sp11_5);
+  white-space: nowrap;
+}
+.tag-live { color: #8ff0bf; background: rgba(31, 157, 99, .16); border-color: rgba(31, 157, 99, .5); }
+.tag-pending { color: var(--gold-bright); background: var(--gold-bg); border-color: var(--gold-line); }
+
+/* ══ 底部公告横幅 ═══════════════════════════════════════════════════════ */
+
+.foot {
+  position: relative;
+  z-index: 2;
+  padding: 0 var(--sp8) var(--sp8);
+  min-width: 0;
+}
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp12);
+  padding: var(--sp8) var(--sp16);
+  background: linear-gradient(90deg, rgba(227, 191, 105, .13), rgba(255, 255, 255, .035) 45%, rgba(255, 255, 255, .02));
+  border: 1px solid var(--card-line);
+  border-left: var(--sp4) solid var(--gold);
+  border-radius: var(--r6);
+  min-width: 0;
+  overflow: hidden;
+}
+.notice-tag {
+  flex: 0 0 auto;
+  font-size: var(--sp14);
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--gold-bright);
+  white-space: nowrap;
+}
+.notice-track { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.notice-text {
+  font-size: var(--sp18);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 公告太长时由 JS 加上这个类，做跑马灯 */
+.notice-text.is-scrolling {
+  text-overflow: clip;
+  animation: noticeScroll var(--nq-dur, 26s) linear infinite;
+}
+@keyframes noticeScroll {
+  0%, 6% { transform: translateX(0); }
+  94%, 100% { transform: translateX(calc(-1 * var(--nq-shift, 0px))); }
+}
+.notice-idx {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--sp12_5);
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
+/* ══ 右下角悬浮控件 ═════════════════════════════════════════════════════ */
+
+.dock {
+  position: fixed;
+  right: var(--sp14);
+  bottom: var(--sp14);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--sp6);
+  padding: var(--sp6);
+  background: rgba(10, 23, 48, .88);
+  border: 1px solid var(--card-line);
+  border-radius: var(--r6);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+  opacity: .2;
+  transition: opacity .35s;
+}
+.dock:hover { opacity: 1; }
+.dock.is-hidden-by-idle { opacity: 0; pointer-events: none; }
+
+.seg { display: inline-flex; border: 1px solid var(--card-line); border-radius: var(--r4); overflow: hidden; }
+.seg-btn {
+  padding: var(--sp4) var(--sp10);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--card-line);
+  color: var(--ink-3);
+  font-size: var(--sp12_5);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg-btn:last-child { border-right: 0; }
+.seg-btn:hover { background: rgba(255, 255, 255, .08); color: var(--ink); }
+.seg-btn.is-on { background: var(--gold-bg); color: var(--gold-bright); font-weight: 700; }
+.dock-btn {
+  padding: var(--sp4) var(--sp10);
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--card-line);
+  border-radius: var(--r4);
+  color: var(--ink-2);
+  font-size: var(--sp12_5);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dock-btn:hover { background: var(--gold-bg); color: var(--gold-bright); border-color: var(--gold-line); }
+
+/* ══ 重要公告：顶部大字滚动条 ═══════════════════════════════════════════ */
+
+.marquee {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--sp14);
+  padding: var(--sp10) var(--sp18);
+  background: linear-gradient(90deg, #9c2a20, #c8452f 45%, #9c2a20);
+  border-bottom: var(--sp3) solid var(--gold);
+  box-shadow: 0 var(--sp6) var(--sp24) rgba(0, 0, 0, .45);
+  min-width: 0;
+}
+.marquee[hidden] { display: none; }
+.marquee-tag {
+  flex: 0 0 auto;
+  padding: var(--sp2) var(--sp10);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: var(--r3);
+  font-size: var(--sp14);
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #fff;
+  white-space: nowrap;
+}
+.marquee-track { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.marquee-text {
+  font-size: var(--sp24);
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+  animation: marqueeRun var(--mq-dur, 22s) linear infinite;
+}
+@keyframes marqueeRun {
+  0% { transform: translateX(60%); }
+  100% { transform: translateX(-100%); }
+}
+.marquee-close {
+  flex: 0 0 auto;
+  width: var(--sp30);
+  height: var(--sp30);
+  background: rgba(255, 255, 255, .16);
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: var(--r4);
+  color: #fff;
+  font-size: var(--sp18);
+  line-height: 1;
+  cursor: pointer;
+}
+.marquee-close:hover { background: rgba(255, 255, 255, .3); }
+
+/* ══ 连接中断提示 ═══════════════════════════════════════════════════════ */
+
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  top: var(--sp96);
+  transform: translateX(-50%);
+  z-index: 45;
+  padding: var(--sp8) var(--sp20);
+  background: rgba(210, 75, 62, .94);
+  border-radius: var(--r6);
+  color: #fff;
+  font-size: var(--sp16);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.offline-banner[hidden] { display: none; }
+
+/* ══ 窄屏兜底（1280×1024 / 1366×768 这类） ═════════════════════════════ */
+
+@media (max-width: 1500px) {
+  /* 窄屏把左列改回比例分配（宽屏用 auto 让会名要足宽度，这里空间不够、必须能收缩） */
+  .top { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, auto); }
+  .live-meta { display: none; }          /* 赛事信息最容易挤，先让位给项目名 */
+  .top { gap: var(--sp12); }
+  .live-bar { padding: var(--sp6) var(--sp12); }
+  .live-name { font-size: var(--sp18); }
+  .clock-time { font-size: var(--sp36); }
+  .brand-meet { font-size: var(--sp32); }
+  /* logo 也收一档（同样 height + aspect-ratio，宽度自动）—— 窄屏要把位置让给会名 */
+  .brand-logo {
+    height: var(--sp56);
+    max-height: var(--sp56);
+    max-width: var(--sp230);
+  }
+  .board-title { font-size: var(--sp16_5); }
+  .top-stat { display: none; }
+}
+
+/* 竖屏 / 很窄：右侧栏挪到下面，两栏变一栏 */
+@media (max-aspect-ratio: 1/1) {
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.6fr) minmax(0, 1fr); }
+  .side { flex-direction: row; }
+  .side .side-card { flex: 1 1 0; min-width: 0; }
+  /* 竖屏（拼接墙）宽度只有 1080，抬头三列**根本挤不下**：
+     实测 logo 占 239px、会名只剩 1px、中间的"正在进行"条被挤掉 10px。
+     竖屏本来就"又窄又高"，所以改成**两行**：
+       第一行：校徽 + 会名（要占满宽度，才排得下 42px 的大字）
+       第二行：「正在进行」条 + 大时钟
+     这比"三列硬挤"读起来舒服得多。大屏以横屏为主，这里只为竖装拼接墙兜底。 */
+  .top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-areas:
+      "brand   brand"
+      "live    clock";
+    gap: var(--sp10) var(--sp14);
+  }
+  .top-left { grid-area: brand; }
+  .top-mid { grid-area: live; }
+  .top-right { grid-area: clock; }
+  .brand-logo { height: var(--sp44); max-width: min(var(--sp170), 40%); max-height: var(--sp44); }
+  .brand-meet { white-space: normal; line-height: 1.1; }
+  .live-name { font-size: var(--sp17); }
+}
+
+/* ── 侧栏：赛程 + 班级总分（去掉"检录"之后的两栏） ─────────────────────
+   原来三栏各占三分之一高度，两边都被压扁：赛程只显示 2~3 条、
+   班级总分连一个年级都放不下。现在整列由这两栏平分，
+   想调整比例就改 .side-card 的 flex（例如赛程略高：flex: 1.15 1 0）。 */
+.side-body .sched-item { padding: var(--sp6) var(--sp8); }
+
+/* 赛程条目的时间列：上面时刻、下面相对时间（"还有 5 分钟"）。
+   相对时间比绝对时刻更有用 —— 站在大屏前的人想知道"还来得及吗"。 */
+/* 赛程条目左边那一列：原来放"07:40 / 还有 12 分钟"，现在**只放状态小签**
+   （项目上不出现任何时间标签）。所以列宽收紧，把地方让给项目名。 */
+.sched-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+.sched-time > b { font-weight: 700; }
+/* 状态小签：检录中=信息蓝，进行中=进行绿 */
+.sched-flag {
+  display: inline-block;
+  padding: var(--sp2) var(--sp7);
+  border-radius: var(--r3);
+  font-size: var(--sp11_5);
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.sched-flag.is-checking {
+  color: var(--info);
+  border-color: var(--info);
+  background: rgba(111, 178, 234, .12);
+}
+.sched-flag.is-live {
+  color: var(--live);
+  border-color: var(--live);
+  background: rgba(69, 201, 138, .12);
+}
+/* 注：原来这一列下面还有一行"还有 N 分钟"（相对时间），
+   随"去掉所有项目时间标签"一起去掉了。另外原来还有
+   `.sched-item.is-done` 的压暗规则 —— 赛程栏现在只显示
+   "正在检录/正在进行"，已结束的不会出现，规则一并删掉。 */

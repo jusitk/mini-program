@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>运动会成绩大屏</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="screen.css">
+</head>
+<body class="screen">
+
+  <!-- ═══ 抬头：左=校徽与会名　中=正在进行　右=大时钟 ═══ -->
+  <header class="top" id="top">
+    <div class="top-left">
+      <div class="brand">
+        <!-- 校徽 + 校名（学校给的横版标识，透明底）。
+             以前这里是手写的内联 SVG 圆形校徽，换成学校正式标识。
+             为什么用 <img>：
+               · 学校给的就是这张图（含校名书法体），照着画容易走形
+               · 以后换 logo 只要替换 public/img/school-logo.webp 一个文件
+             两个注意点：
+               ① **只给 height、不给 width** —— 宽度按原图比例（1024:265）自己算。
+                  写死宽高比，一旦换图就会被拉变形。
+               ② 原图金色是 #a88858（暗金），放在本系统深蓝底上对比度只有约 2.5:1，
+                  发闷、远处看不清；用 brightness 提到亮金（见 screen.css 的 .brand-logo）。
+             （图放在自己服务器上，断外网也照样显示。） -->
+        <img class="brand-logo" src="img/school-logo.webp" data-optional-img
+             alt="" decoding="async">
+        <div class="brand-text">
+          <h1 class="brand-meet" id="meetName">运动会成绩发布</h1>
+          <div class="brand-sub" id="meetSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-mid">
+      <div class="live-bar" id="liveBar">
+        <span class="live-tag"><i class="live-pin"></i>正在进行</span>
+        <span class="live-name" id="liveName">暂无进行中的项目</span>
+        <span class="live-meta" id="liveMeta"></span>
+        <span class="live-pager" id="livePager"></span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="clock">
+        <div class="clock-time num" id="clockTime">--:--:--</div>
+        <div class="clock-date" id="clockDate"></div>
+      </div>
+      <div class="top-status">
+        <span class="conn" id="conn" title="与主机的连接状态">
+          <i class="conn-dot"></i><span class="conn-text" id="connText">正在连接…</span>
+        </span>
+        <span class="top-stat" id="topStat"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ 主体：左=成绩公告（多张卡片）　右=赛程安排 / 班级总分 ═══ -->
+  <main class="stage" id="stage">
+
+    <section class="card-face board" data-panel="score" id="panelScore">
+      <div class="board-head">
+        <div class="board-title" id="title-score">成绩公告</div>
+        <div class="board-sub" id="scoreSub"></div>
+        <div class="board-tools">
+          <span class="pager" id="pager-score"></span>
+          <button class="icon-btn" type="button" data-page="prev" data-for="score" title="上一页">‹</button>
+          <button class="icon-btn" type="button" data-page="next" data-for="score" title="下一页">›</button>
+          <button class="icon-btn panel-pause" type="button" data-pause="score"
+                  title="暂停这一栏的翻页（不影响其它栏）">❚❚</button>
+        </div>
+      </div>
+      <div class="board-body" id="body-score"></div>
+    </section>
+
+    <!-- 右侧只有两栏：赛程安排在上、班级总分在下。
+         原来还有一栏"检录"，占掉了三分之一高度、两栏都被压扁；
+         检录信息本身在检录台和后台看更合适，大屏留着反而挤掉名次。 -->
+    <aside class="side">
+      <section class="card-face side-card" data-panel="schedule" id="panelSchedule">
+        <div class="board-head">
+          <div class="board-title" id="title-schedule">赛程安排</div>
+          <div class="board-sub" id="scheduleSub"></div>
+          <div class="board-tools">
+            <button class="icon-btn" type="button" data-page="prev" data-for="schedule" title="上一页">‹</button>
+            <button class="icon-btn" type="button" data-page="next" data-for="schedule" title="下一页">›</button>
+            <button class="icon-btn panel-pause" type="button" data-pause="schedule" title="暂停这一栏的翻页">❚❚</button>
+          </div>
+        </div>
+        <div class="board-body side-body" id="body-schedule"></div>
+      </section>
+
+      <section class="card-face side-card" data-panel="classPoints" id="panelClassPoints">
+        <div class="board-head">
+          <div class="board-title" id="title-classPoints">班级总分</div>
+          <div class="board-sub" id="classSub"></div>
+          <div class="board-tools">
+            <button class="icon-btn" type="button" data-page="prev" data-for="classPoints" title="上一页">‹</button>
+            <button class="icon-btn" type="button" data-page="next" data-for="classPoints" title="下一页">›</button>
+            <button class="icon-btn panel-pause" type="button" data-pause="classPoints" title="暂停这一栏的翻页">❚❚</button>
+          </div>
+        </div>
+        <div class="board-body side-body" id="body-classPoints"></div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- ═══ 底部公告横幅（只有它常驻底部） ═══ -->
+  <footer class="foot">
+    <div class="notice-bar" id="noticeBar">
+      <span class="notice-tag">公告</span>
+      <div class="notice-track"><div class="notice-text" id="noticeText"></div></div>
+      <span class="notice-idx" id="noticeIdx"></span>
+    </div>
+  </footer>
+
+  <!-- ═══ 右下角悬浮控件：鼠标静止 5 秒自动隐藏，平时不占版面 ═══ -->
+  <div class="dock" id="dock" title="鼠标静止 5 秒后这组按钮会自动隐藏">
+    <div class="seg" id="modeSeg" role="group" aria-label="显示模式">
+      <button type="button" data-mode="standard" class="seg-btn">标准</button>
+      <button type="button" data-mode="large" class="seg-btn is-on">户外大</button>
+      <button type="button" data-mode="huge" class="seg-btn">户外特大</button>
+    </div>
+    <button class="dock-btn" id="btnResumeAll" type="button" title="让所有栏目恢复自动翻页">继续翻页</button>
+    <button class="dock-btn" id="btnRefresh" type="button" title="立刻重新拉取一次数据">刷新</button>
+    <button class="dock-btn" id="btnFull" type="button" title="全屏（F11 也可以）">全屏</button>
+  </div>
+
+  <!-- 重要公告：大字滚动条（盖在主体上方） -->
+  <div class="marquee" id="marquee" hidden>
+    <span class="marquee-tag" id="marqueeTag">重要公告</span>
+    <div class="marquee-track"><div class="marquee-text" id="marqueeText"></div></div>
+    <button class="marquee-close" id="marqueeClose" type="button" title="关闭这条大字公告">×</button>
+  </div>
+
+  <!-- 版面体检结果与排版诊断（给自动化测试断言用；现场也可在开发者工具里看） -->
+  <div id="layout-report" class="sr-only" aria-hidden="true"></div>
+  <div id="diagPlan" class="sr-only" aria-hidden="true"></div>
+  <div id="diagCard" class="sr-only" aria-hidden="true"></div>
+  <div id="diagHeader" class="sr-only" aria-hidden="true"></div>
+  <div id="diagGeom" class="sr-only" aria-hidden="true"></div>
+  <!-- 翻页节奏诊断：各栏第几页、下次翻页还有多久、在等哪张卡滚完。
+       现场排查"某栏长时间不翻页"就看这里（F12 里搜 diagPage）。 -->
+  <div id="diagPage" class="sr-only" aria-hidden="true"></div>
+
+  <script src="common.js"></script>
+  <!-- 增量合并（纯函数）：服务端推来的补丁怎么并进本地快照（见文件头注释） -->
+  <script src="snapshot-merge.js"></script>
+  <script src="screen.js"></script>
+</body>
+</html>

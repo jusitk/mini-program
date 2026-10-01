@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>登录 · 运动会成绩系统</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="login.css">
+</head>
+<body class="login-page">
+
+  <div class="login-bg" aria-hidden="true"></div>
+
+  <main class="login-box goldline-top">
+    <div class="login-head">
+      <!-- 校徽 / 单位标识（**可选**，同大屏那张图 public/img/school-logo.webp）。
+           开源版不带任何单位标识：图不存在时 onerror 会把它隐藏掉，布局照旧。
+           登录页也是深色底，原图偏暗的话要提亮（见 login.css 的 .login-logo）。 -->
+      <img class="login-logo" src="img/school-logo.webp" data-optional-img alt="" decoding="async">
+      <h1>运动会成绩系统</h1>
+      <p class="login-sub" id="meetName">后台管理与成绩录入</p>
+    </div>
+
+    <form class="login-form" id="loginForm" autocomplete="on">
+      <label class="field">
+        <span class="label">账号</span>
+        <input class="input" id="username" name="username" type="text" autocomplete="username"
+               placeholder="例如 admin" required>
+      </label>
+      <label class="field">
+        <span class="label">口令</span>
+        <input class="input" id="password" name="password" type="password" autocomplete="current-password"
+               placeholder="区分大小写" required>
+      </label>
+
+      <div class="login-msg" id="loginMsg" role="alert"></div>
+
+      <button class="btn btn-primary login-btn" id="btnLogin" type="submit">登 录</button>
+    </form>
+
+    <div class="login-foot">
+      <div>大屏是免登录的：<a href="/screen">直接打开大屏</a></div>
+      <div class="muted" id="tip">进不去后台？在服务器上运行 node tools/reset-password.js 重置口令</div>
+    </div>
+  </main>
+
+  <div id="layout-report" class="sr-only" aria-hidden="true"></div>
+
+  <script src="common.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

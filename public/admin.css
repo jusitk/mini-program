@@ -1,0 +1,1187 @@
+/* ============================================================================
+ * admin.css —— 录入后台（亮色，独立一套，不复用大屏的 base.css）
+ *
+ * 【为什么独立】
+ *   大屏是深色、远看；后台是亮色、长时间盯着录数据 —— 视觉方向完全不同。
+ *   更要紧的是：独立之后后台不依赖 --s 缩放变量与一长串 --sp* 计算变量，
+ *   页面上所有尺寸都用 rem/px 直白写死，窗口缩小、换显示器都不会变形。
+ *
+ * 【尺寸体制】
+ *   html 字号按屏宽三档（手机 14px / 常规 16px / 大屏 17px），页面里的尺寸全用 rem，
+ *   于是整体等比缩放，不需要 JS 参与，也不会出现"某个变量算错就全乱"的情况。
+ *
+ * 【布局原则（改之前先读）】
+ *   1. 页面是纵向 flex：顶栏 / 暂存条 / 页签 / 内容，四块互不重叠
+ *   2. 内容区不设固定高度，由页面自然滚动（不再用"面板撑满一屏"那套，容易互相挤压）
+ *   3. 每个块只做一层 flex 或一层 grid，不嵌套多层弹性布局
+ *   4. 表格与卡片都允许横向滚动，窄屏宁可滚动也不把字挤成竖条
+ * ========================================================================== */
+
+/* ── 设计令牌 ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* 品牌与中性色 */
+  --brand:      #8a6a2f;
+  --brand-2:    #a8843c;
+  --brand-bg:   #f6f1e6;
+
+  --page:       #eef1f6;
+  --surface:    #ffffff;
+  --surface-2:  #f7f9fc;
+  --surface-3:  #eaeef5;
+  --line:       #dde3ec;
+  --line-soft:  #edf1f6;
+
+  --ink:        #1b2437;
+  --ink-2:      #46566f;
+  --ink-3:      #7b8aa2;
+  --ink-4:      #a7b2c4;
+
+  --nav:        #12213c;
+  --nav-2:      #0e1a30;
+  --nav-ink:    #cfd9ea;
+
+  --blue:       #2f6fd0;
+  --blue-bg:    #eaf1fd;
+  --blue-line:  #c9dcf8;
+
+  --green:      #1f9d63;
+  --green-bg:   #eefaf3;
+  --green-line: #a9dfc4;
+
+  --red:        #d24b3e;
+  --red-bg:     #fdeceb;
+  --red-line:   #eebcb6;
+
+  --amber:      #b7791f;
+  --amber-bg:   #fdf6e8;
+  --amber-line: #e8d5a8;
+
+  --gold:       #c9942a;
+  --silver:     #8a97ab;
+  --bronze:     #b07a4c;
+
+  --radius:     8px;
+  --radius-sm:  6px;
+  --shadow-sm:  0 1px 2px rgba(20, 34, 60, .06);
+  --shadow:     0 2px 8px rgba(20, 34, 60, .08);
+  --shadow-lg:  0 16px 48px rgba(16, 30, 60, .24);
+}
+
+/* 屏宽三档（rem 基准）：手机 / 常规 / 大屏 */
+html { font-size: 14px; }
+@media (min-width: 900px)  { html { font-size: 16px; } }
+@media (min-width: 1600px) { html { font-size: 17px; } }
+
+/* ── 基础重置 ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  /* 页面绝不横向滚动：任何一处撑开都在源头上被挡住 */
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 等宽数字：成绩、名次、时间都要能对齐成列 */
+.num, .mono, .score-input, td.num {
+  font-family: Consolas, "Cascadia Mono", "SF Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 700; line-height: 1.3; }
+p { margin: 0 0 .6em; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select, textarea { font: inherit; color: inherit; }
+img, svg { display: block; }
+
+/* 屏读器/自动化专用：给 #layout-report、#diagUi 这类诊断容器用。
+   加 !important 与 nowrap 是**故意的**：这几个元素里会写进很长的诊断 JSON，
+   一旦没藏住就会在页面底部露出一大段（踩过这个坑），所以这里宁可写死。 */
+.hidden-text {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.spacer { flex: 1 1 auto; min-width: 0; }
+.muted { color: var(--ink-3); }
+.right { text-align: right; }
+.nowrap { white-space: nowrap; }
+
+/* ── 顶栏 ─────────────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .6rem 1.25rem;
+  background: linear-gradient(180deg, #17294a, var(--nav));
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(10, 20, 40, .22);
+}
+.topbar-left { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+
+/* 校徽 + 校名图片（学校正式标识，原图 1024×265）。
+   · 必须写 aspect-ratio：图片加载前浏览器不知道固有比例，只给 height 会先按很宽的
+     尺寸布局、把标题挤出去（大屏那边踩过同样的坑）
+   · 顶栏是深蓝底，原图暗金 #a88858 对比度不足，brightness 提亮到亮金
+   · max-width 兜住：窄屏（手机后台）别把标题挤没了 */
+.topbar-logo {
+  height: 2rem;            /* 32px @16px */
+  width: auto;
+  aspect-ratio: 1024 / 265;
+  max-width: 11rem;
+  max-height: 2rem;
+  flex: 0 0 auto;
+  display: block;
+  object-fit: contain;
+  filter: brightness(1.45) saturate(1.05);
+}
+.topbar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  /* 窄屏要给右边让位置：允许压缩并省略。
+     只写 nowrap 不写 min-width:0 时，这个 flex 子项会按固有宽度撑住，
+     把 .topbar-left 顶出容器（实测 1280x1024 溢出 8px）。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.meet {
+  font-size: .8125rem;
+  color: #9fb0cc;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who { font-size: .8125rem; color: var(--nav-ink); white-space: nowrap; }
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .8125rem;
+  color: var(--nav-ink);
+  white-space: nowrap;
+}
+.conn .dot {
+  width: .5rem; height: .5rem; border-radius: 50%;
+  background: var(--green);
+  flex: 0 0 auto;
+}
+.conn.is-off .dot { background: var(--amber); }
+.conn.is-bad { color: #ffc9c5; }
+.conn.is-bad .dot { background: var(--red); }
+
+/* 「有更新待显示」：用户正在打字时先不重画，用这个告诉他不是卡住了。
+   顶栏是深色的，所以这里用亮一点的金色描边。 */
+.update-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: .15rem .5rem;
+  border: 1px solid #6b5a2a;
+  border-radius: 999px;
+  background: #3a3220;
+  color: #f2d489;
+  font-size: .75rem;
+  white-space: nowrap;
+  cursor: help;
+}
+.update-hint[hidden] { display: none; }
+
+/* 「待补交 N 条」：断网时录的成绩存在本机，这里显示还没交上去的条数。
+   点一下会立刻重试补交。必须**显眼** —— 它代表"这些成绩还没进服务器"，
+   裁判看不到就会以为全录完了（这正是审计报告里那个坑）。 */
+.queue-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: .15rem .6rem;
+  border: 1px solid #8a6d1f;
+  border-radius: 999px;
+  background: #4a3a12;
+  color: #ffd75e;
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+}
+.queue-hint:hover { background: #5c4817; }
+/* 有被服务端拒绝的条目 → 换成红色：那已经不是"等一会儿就好"，是需要人来处理 */
+.queue-hint.is-bad {
+  border-color: #a33;
+  background: #4a1c1c;
+  color: #ffb3b3;
+}
+.queue-hint.is-bad:hover { background: #5e2323; }
+.queue-hint[hidden] { display: none; }
+.linkbtn {
+  padding: .35rem .75rem;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  font-size: .8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.linkbtn:hover { background: rgba(255, 255, 255, .18); color: #fff; text-decoration: none; }
+
+/* ── 暂存条 ───────────────────────────────────────────────────────────── */
+
+.stagebar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.stagebar.has-items { background: var(--amber-bg); border-bottom-color: var(--amber-line); }
+.badge {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: .1rem .4rem;
+  border-radius: 1rem;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-family: Consolas, monospace;
+  font-size: .8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+.stagebar.has-items .badge { background: var(--amber); color: #fff; }
+.stage-text { font-size: .875rem; color: var(--ink-2); min-width: 0; }
+
+/* ── 按钮 / 输入框 ────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 2.125rem;
+  padding: 0 .85rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: .875rem;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn:hover { background: var(--surface-2); border-color: #c6d0de; }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(180deg, #3b7de0, var(--blue));
+  border-color: #2a63b8;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { background: linear-gradient(180deg, #4b8aeb, #2f6fd0); color: #fff; }
+.btn-danger { background: var(--red-bg); border-color: var(--red-line); color: var(--red); }
+.btn-danger:hover { background: #fbdcd9; }
+.btn-sm { min-height: 1.75rem; padding: 0 .6rem; font-size: .8125rem; }
+/* 更小一档：接力队伍那种"一行里要塞三个按钮"的地方用 */
+.btn-xs { min-height: 1.5rem; padding: 0 .4rem; font-size: .75rem; }
+/* "次要按钮"：不需要边框和投影，用在每行末尾的删除/撤回上，避免一行里全是重按钮 */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ink-3);
+}
+.btn-ghost:hover { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
+
+.input, .select, .textarea {
+  width: 100%;
+  min-height: 2.125rem;
+  padding: .3rem .6rem;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: .9375rem;
+}
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(47, 111, 208, .14);
+}
+.input::placeholder, .textarea::placeholder { color: var(--ink-4); }
+.input[disabled], .select[disabled] { background: var(--surface-2); color: var(--ink-3); }
+.textarea { min-height: 5rem; resize: vertical; font-family: inherit; }
+.input-editable { background: var(--amber-bg); border-color: var(--amber-line); }
+
+/* ── "还没录全"提示条（成绩与名次页用）────────────────────────────────────
+   大屏在没录全时**不显示名次**（只显示"成绩录入中 X/Y"）。
+   后台要让人一眼看出"这个还没录完、大屏上现在是空着的"，
+   否则会以为大屏坏了。（大屏那边的 .notice-bar 是深色主题，不能复用。） */
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 .75rem;
+  padding: .5rem .7rem;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-line);
+  border-left: 3px solid #d9a520;
+  border-radius: .3rem;
+  font-size: .875rem;
+  color: #7a5600;
+  line-height: 1.6;
+}
+
+.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .875rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  /* 【为什么不在宽屏 nowrap】勾选项的文字有的很长
+     （"大屏显示班级总分榜"这种）。nowrap + 容器窄 = 直接顶破容器，
+     实测窄屏下 label.chk 溢出 159px。
+     宽屏一行放得下，窄屏让它换行更合理。 */
+  flex-wrap: wrap;
+}
+.chk input { width: 1rem; height: 1rem; accent-color: var(--blue); flex: 0 0 auto; }
+
+.field { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.field > .label { font-size: .8125rem; color: var(--ink-3); }
+.field > .hint { font-size: .75rem; color: var(--ink-4); line-height: 1.6; }
+/* 表单控件不许比它所在的格子还宽 —— 否则内联写了固定 px 宽度的地方
+   （下拉框 220px 之类）会在窄屏里顶破容器。 */
+.field > .input, .field > .select, .field > textarea { max-width: 100%; box-sizing: border-box; }
+
+/* ── 页签 ─────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  padding: 0 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  /* 允许换行：屏窄时自动排成两行，比横向滚动更稳（也不会出现滚动条错位） */
+  flex-wrap: wrap;
+}
+.tab {
+  position: relative;
+  padding: .6rem .8rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-2);
+  font-size: .9375rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--blue); }
+.tab.is-on { color: var(--blue); border-bottom-color: var(--blue); font-weight: 700; }
+/* 按角色隐藏页签：用 hidden 属性 + 这个类双保险（有的布局会给 button 设 display） */
+.tab[hidden], .is-hidden[hidden], [hidden] { display: none !important; }
+.stagebar[hidden] { display: none !important; }
+
+/* 顶栏的角色色标：现场一眼看出"我现在是谁、改动会不会直接生效" */
+.role-badge {
+  display: inline-block;
+  padding: .1rem .5rem;
+  border-radius: .65rem;
+  border: 1px solid transparent;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.role-badge.role-admin { background: #eaf1fd; border-color: #c9dcf8; color: #2f6fd0; }
+.role-badge.role-operator { background: #e8f6ee; border-color: #c3e6d2; color: #217a49; }
+.role-badge.role-viewer { background: #eef1f6; border-color: #dde3ec; color: #62708a; }
+.badge-inline {
+  display: inline-block;
+  margin-left: .3rem;
+  min-width: 1.1rem;
+  padding: 0 .3rem;
+  border-radius: .7rem;
+  background: var(--red);
+  color: #fff;
+  font-size: .6875rem;
+  font-style: normal;
+  line-height: 1.1rem;
+  text-align: center;
+}
+
+/* ── 内容区 ───────────────────────────────────────────────────────────── */
+
+.content {
+  flex: 1 1 auto;
+  padding: 1rem 1.25rem 3rem;
+  min-width: 0;
+}
+.pane { display: none; }
+.pane.is-on { display: block; }
+
+/* 卡片块 */
+.box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.box-head {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .7rem 1rem;
+  border-bottom: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+.box-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9375rem;
+  font-weight: 700;
+}
+.box-title::before {
+  content: "";
+  width: 3px;
+  height: .9rem;
+  background: linear-gradient(180deg, var(--brand-2), var(--brand));
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.box-note { font-size: .8125rem; color: var(--ink-3); }
+.box-body { padding: .85rem 1rem; }
+.box-body.flush { padding: 0; }
+
+.toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.toolbar .grow { flex: 1 1 12rem; min-width: 8rem; }
+.toolbar .input, .toolbar .select { width: auto; min-width: 8rem; }
+
+/* 统计卡 */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; }
+.stat { padding: .7rem .85rem; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.stat .k { font-size: .8125rem; color: var(--ink-3); }
+.stat .v { font-family: Consolas, monospace; font-size: 1.5rem; font-weight: 700; color: var(--blue); line-height: 1.3; }
+.stat .x { font-size: .75rem; color: var(--ink-4); }
+
+/* 【列宽的最小值要能"让位"】
+   原来写 minmax(12rem, 1fr) —— 12rem=192px 是**硬最小宽**。
+   容器只有 173px 时（窄屏里 .form-grid 在弹窗/设置页内），
+   列还是硬撑 192px，于是整块横向溢出（真机 392px 实测超出 47px）。
+   min(12rem, 100%) 的意思是"最多 12rem，但容器更窄时就跟着容器缩"。 */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: .75rem;
+}
+.form-grid .field-wide { grid-column: 1 / -1; }
+
+/* ── 录入页：左项目列表 + 右录入区 ─────────────────────────────────────── */
+
+.entry-layout {
+  display: grid;
+  /* 左列固定宽度上限，右列吃剩余空间；窄屏（<900px）自动变成上下两块 */
+  grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .entry-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 左侧项目列表 */
+.ev-list { max-height: 70vh; overflow-y: auto; padding: .5rem; }
+.ev-group-head {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .35rem .5rem;
+  font-size: .8125rem;
+  color: var(--ink-3);
+}
+.ev-group-head .n { color: var(--ink-4); }
+.ev-pick {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .5rem;
+  margin-bottom: .15rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: .9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+.ev-pick:hover { background: var(--surface-2); }
+.ev-pick.is-on { background: var(--blue-bg); border-color: var(--blue-line); color: var(--blue); font-weight: 700; }
+.ev-pick .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--ink-4); flex: 0 0 auto; }
+.ev-pick .dot.live { background: var(--green); }
+.ev-pick .dot.done { background: #b9c2d2; }
+.ev-pick .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 注：原来这里还有 `.ev-pick .tm`（项目列表右侧那个时刻）。
+   按用户要求"去掉所有项目的时间标签"，那个元素已经不再渲染，样式一并删掉。 */
+
+/* 右侧头部 */
+.entry-head {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+/* 【为什么必须写 min-width: 0】
+   flex 项默认是 min-width: auto —— 意思是"宁可撑破容器，也不缩到比内容窄"。
+   所以这里装标题+信息的那个 div 会被一行长中文顶住不缩，
+   在手机上（392px）整行横向溢出 12px，页面自检报
+   「overflow div.entry-head / overflow div.entry-info」。
+   写成 flex: 1 1 auto + min-width: 0 之后它才肯缩、文字才肯换行。
+   （左下角那个项目列表是同样的道理，见 .ev-pick 的 min-width: 0。） */
+.entry-head > div:first-child { flex: 1 1 auto; min-width: 0; }
+/* 标题和信息都要能在窄屏里换行 —— 项目名和"时间 → 时间"都是长串 */
+.entry-title, .entry-info { overflow-wrap: anywhere; }
+.entry-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+.entry-title::before {
+  content: "";
+  width: 4px;
+  height: 1.25rem;
+  background: linear-gradient(180deg, var(--brand-2), var(--brand));
+  border-radius: 2px;
+}
+.entry-info { font-size: .875rem; color: var(--ink-2); line-height: 1.9; }
+.entry-info .miss { background: #fff3cd; color: #8a6100; padding: 0 .25rem; border-radius: 3px; }
+.entry-actions { margin-left: auto; display: flex; gap: .4rem; flex-wrap: wrap; }
+.state-btn {
+  padding: .35rem .8rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: .875rem;
+  cursor: pointer;
+}
+.state-btn:hover { border-color: var(--blue); color: var(--blue); }
+.state-btn.is-on { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 700; }
+
+.prog-wrap { margin: .85rem 0 .6rem; }
+.prog-bar { height: .4rem; border-radius: 1rem; background: var(--surface-3); overflow: hidden; }
+.prog-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--blue), #5b96ea); }
+.prog-text { margin-top: .35rem; font-size: .875rem; color: var(--ink-3); }
+.prog-text b { color: var(--blue); font-family: Consolas, monospace; }
+
+.tip {
+  margin: .6rem 0;
+  padding: .6rem .75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  font-size: .8125rem;
+  color: var(--ink-2);
+  line-height: 1.85;
+}
+.tip code {
+  font-family: Consolas, monospace;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 0 .25rem;
+  border-radius: 3px;
+}
+
+/* 录入表 */
+.table-wrap { width: 100%; overflow-x: auto; }
+table.entry-table { width: 100%; border-collapse: collapse; min-width: 40rem; }
+table.entry-table th {
+  padding: .55rem .6rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: .8125rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+table.entry-table td {
+  padding: .45rem .6rem;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+table.entry-table tr.class-row td {
+  padding: .4rem .6rem;
+  background: var(--surface-2);
+  font-size: .875rem;
+  font-weight: 700;
+}
+table.entry-table tr.class-row .cnt { float: right; font-weight: 400; color: var(--ink-3); font-size: .8125rem; }
+.rank-cell { width: 3.5rem; font-family: Consolas, monospace; font-size: 1.0625rem; font-weight: 700; color: var(--ink-3); }
+.rank-cell.top1 { color: var(--gold); }
+.rank-cell.top2 { color: var(--silver); }
+.rank-cell.top3 { color: var(--bronze); }
+.name-cell { font-size: 1rem; font-weight: 600; }
+.sub-cell { font-size: .8125rem; color: var(--ink-3); }
+.slot-cell { width: 11rem; }
+
+.score-input {
+  width: 100%;
+  min-height: 2.375rem;
+  padding: 0 .6rem;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 1.0625rem;
+  text-align: center;
+  outline: none;
+}
+.score-input::placeholder { font-family: inherit; font-size: .8125rem; color: var(--ink-4); }
+.score-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47, 111, 208, .14); }
+.score-input.has-value { background: var(--green-bg); border-color: var(--green-line); color: #0f6b43; font-weight: 700; }
+.score-input.is-bad { background: var(--red-bg); border-color: var(--red-line); }
+.score-input.is-queued { background: var(--amber-bg); border-color: var(--amber-line); }
+.slots { display: flex; gap: .35rem; flex-wrap: wrap; }
+.slots .score-input { min-width: 4.5rem; }
+
+/* 成绩框 + 「犯规 / 弃权」快捷标记。
+   现场打"犯规"两个字容易打成"犯规了"，手机上还要切输入法；
+   点一下就等于把这两个字填进去并立刻保存，再点一次取消。 */
+.slot { display: flex; align-items: center; gap: .2rem; }
+.mark-btn {
+  padding: .25rem .4rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  font-size: .75rem;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mark-btn:hover { border-color: var(--amber-line); color: var(--amber); background: var(--amber-bg); }
+/* 已判犯规 / 已弃权：按钮点亮，一眼看出这一格不是成绩 */
+.mark-btn.is-on { border-color: var(--amber); background: var(--amber); color: #fff; font-weight: 700; }
+
+/* ── 检录页（现场是拿手指连续点几十下，所以按"点得快"来设计）────────────
+   三件事：整行可点、状态一眼可辨、进度看得见。 */
+.ck-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.ck-progress { font-size: 1rem; font-weight: 700; font-family: Consolas, monospace; }
+.ck-progress b { color: var(--blue); }
+.ck-tip { margin: .3rem 0 .6rem; }
+
+/* 进度条：离"人齐"还有多远，一眼看到 */
+.ck-bar {
+  height: .375rem;
+  background: var(--surface-2, #eef2f8);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ck-bar .ck-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--blue), #4aa3ff);
+  border-radius: 999px;
+  transition: width .18s ease;
+}
+.ck-bar.is-full .ck-fill { background: linear-gradient(90deg, #2e9e5b, #46c47a); }
+
+/* 行：整行可点，手指够得着 */
+.ck-table .ck-row { cursor: pointer; }
+.ck-table .ck-row td { padding-top: .55rem; padding-bottom: .55rem; }
+.ck-table .ck-row:hover { background: #f2f7ff; }
+/* 已到：整行压暗 + 左边一条绿条，扫一眼就知道这排点过了 */
+.ck-table .ck-row.is-arrived { background: #f3faf5; }
+.ck-table .ck-row.is-arrived td { color: var(--ink-3); }
+.ck-table .ck-row.is-arrived td:first-child { box-shadow: inset 3px 0 0 #2e9e5b; }
+.ck-table .ck-name { font-weight: 600; }
+
+/* 那一下点击的标记（比原来的文字按钮好点得多） */
+.ck-mark {
+  min-width: 4.25rem;
+  padding: .4rem .6rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .8125rem;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ck-mark:hover { border-color: var(--amber-line); color: var(--amber); background: var(--amber-bg); }
+.ck-mark.is-on { border-color: #2e9e5b; background: #2e9e5b; color: #fff; font-weight: 700; }
+
+.clear-btn {
+  padding: .3rem .6rem;
+  background: #fff;
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: .8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.clear-btn:hover { background: var(--red-bg); }
+.ck-btn {
+  width: 2rem; height: 2rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink-4);
+  font-size: .8125rem;
+  cursor: pointer;
+}
+.ck-btn.is-on { background: var(--green-bg); border-color: var(--green-line); color: var(--green); font-weight: 700; }
+
+/* ── 屏蔽 / 取消屏蔽（录入页每行末尾）──────────────────────────────────
+   屏蔽只影响**展示**：人还在库里、成绩还在、还能录。所以这里不隐藏他，
+   只是灰掉整行 + 按钮变成"取消屏蔽"，让人一眼看出状态、也方便点回来。 */
+.block-btn {
+  padding: .3rem .6rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  font-size: .8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.block-btn:hover { background: var(--surface-2); border-color: var(--amber-line, var(--line)); color: var(--ink); }
+.block-btn.is-on {
+  background: var(--amber-bg, var(--surface-2));
+  border-color: var(--amber-line, var(--line));
+  color: var(--amber, #b26a00);
+  font-weight: 600;
+}
+/* 被屏蔽的行整体降透明度 —— 不隐藏（还要能点"取消屏蔽"），但要一眼看出来 */
+.entry-table tr.is-blocked > td { opacity: .5; }
+.entry-table tr.is-blocked > td:last-child { opacity: 1; }
+
+/* ── 名单：班级分块 ───────────────────────────────────────────────────── */
+
+.class-block { border-bottom: 1px solid var(--line-soft); }
+.class-block:last-child { border-bottom: 0; }
+.class-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: var(--surface-2);
+  font-size: .875rem;
+  font-weight: 700;
+}
+.class-head .n { font-family: Consolas, monospace; font-weight: 400; color: var(--ink-3); font-size: .8125rem; }
+
+/* ── 项目行（赛程页签） ───────────────────────────────────────────────── */
+
+.ev-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .7rem 1rem;
+  border-bottom: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+.ev-row:last-child { border-bottom: 0; }
+.ev-row:hover { background: #fafcff; }
+.ev-row .idx { flex: 0 0 1.75rem; font-family: Consolas, monospace; color: var(--ink-4); font-size: .8125rem; }
+/* 【基准值别写太大】原来是 flex: 1 1 14rem —— 基准 224px。
+   窄屏（真机 392px）下"基准 + 右边的操作按钮"加起来就超过容器，
+   整行横向溢出（自检报 14 处 overflow div.ev-row）。
+   改成 auto：内容想多宽就多宽，但要缩的时候能缩。
+   窄屏上再由下面的媒体查询让操作按钮独占一行。 */
+.ev-row .grow { flex: 1 1 auto; min-width: 0; }
+.ev-row .name { font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
+.ev-row .meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .2rem; font-size: .8125rem; color: var(--ink-3); }
+.ev-row .acts { display: flex; gap: .35rem; flex-wrap: wrap; flex: 0 0 auto; }
+
+.pill {
+  display: inline-block;
+  padding: .05rem .45rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: .75rem;
+  white-space: nowrap;
+}
+.pill-auto { color: var(--blue); background: var(--blue-bg); border-color: var(--blue-line); }
+.pill-manual { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-line); }
+.pill-ok { color: var(--green); background: var(--green-bg); border-color: var(--green-line); }
+.pill-warn { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-line); }
+.pill-dim { color: var(--ink-3); background: var(--surface-2); border-color: var(--line); }
+.pill-danger { color: var(--red); background: var(--red-bg); border-color: var(--red-line); }
+
+/* ── 表格（名次 / 总分 / 账号 / 记录） ─────────────────────────────────── */
+
+table.grid { width: 100%; border-collapse: collapse; font-size: .875rem; }
+table.grid th {
+  padding: .5rem .6rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+table.grid td { padding: .45rem .6rem; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+table.grid tbody tr:hover { background: #f8fafd; }
+table.grid td.num, table.grid th.num { text-align: right; font-family: Consolas, monospace; }
+
+tr.top1 td { background: #fdf8ea; }
+tr.top2 td { background: #f6f8fb; }
+tr.top3 td { background: #fbf6f1; }
+
+/* ── 聊天室 ───────────────────────────────────────────────────────────── */
+
+.chat { display: flex; flex-direction: column; height: 32rem; max-height: 70vh; }
+.chat-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: .85rem 1rem; display: flex; flex-direction: column; gap: .75rem; }
+.chat-item { display: flex; gap: .6rem; align-items: flex-start; }
+.chat-avatar {
+  flex: 0 0 2.125rem;
+  width: 2.125rem; height: 2.125rem;
+  border-radius: 50%;
+  background: var(--blue-bg);
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8125rem; font-weight: 700;
+}
+.chat-main { flex: 1 1 auto; min-width: 0; }
+.chat-meta { display: flex; align-items: baseline; gap: .5rem; font-size: .75rem; color: var(--ink-4); flex-wrap: wrap; }
+.chat-meta .nm { font-size: .875rem; font-weight: 600; color: var(--ink); }
+.chat-text { margin-top: .15rem; font-size: .9375rem; line-height: 1.6; word-break: break-word; white-space: pre-wrap; }
+.chat-text.is-deleted { color: var(--ink-4); font-style: italic; }
+.chat-attach img { max-width: min(100%, 20rem); border-radius: var(--radius-sm); margin-top: .25rem; }
+.chat-input { flex: 0 0 auto; display: flex; gap: .5rem; align-items: flex-end; padding: .75rem 1rem; border-top: 1px solid var(--line-soft); }
+.chat-input .textarea { flex: 1 1 auto; min-height: 2.5rem; max-height: 8rem; }
+
+/* ── 弹层 ─────────────────────────────────────────────────────────────── */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(16, 26, 44, .5);
+}
+.modal[hidden] { display: none; }
+.modal-box {
+  width: min(94vw, 40rem);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.modal-box.wide { width: min(96vw, 64rem); }
+.modal-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .75rem 1.1rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.modal-head h3 { font-size: 1rem; }
+.modal-x {
+  width: 1.75rem; height: 1.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.modal-x:hover { background: var(--red-bg); color: var(--red); }
+.modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1rem 1.1rem; }
+.modal-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .75rem 1.1rem;
+  border-top: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+.ask-text { font-size: .9375rem; line-height: 1.8; white-space: pre-wrap; }
+
+.stage-item { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-bottom: 1px solid var(--line-soft); }
+.stage-item:last-child { border-bottom: 0; }
+.stage-item .seq { flex: 0 0 1.5rem; font-family: Consolas, monospace; font-size: .8125rem; color: var(--ink-4); }
+.stage-item .lb { flex: 1 1 auto; font-size: .875rem; }
+.stage-item .by { font-size: .75rem; color: var(--ink-4); }
+
+/* ── 在线会话列表（账号页点"N 个地方在线"弹出来的那个） ──────────────────
+   为什么要单独给样式：这个弹窗里要看 IP、设备、两个时间、还要放"踢掉"按钮，
+   挤成一行会看不清。所以做成"每行一次登录"，左边信息右边动作。 */
+.sess-list { max-height: 22rem; overflow-y: auto; margin-top: .25rem; }
+.sess-row {
+  display: flex; align-items: flex-start; gap: .6rem;
+  padding: .5rem .55rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+.sess-row:last-of-type { border-bottom: 0; }
+.sess-row .grow { flex: 1 1 auto; min-width: 0; }
+.sess-ip {
+  display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: .875rem; font-weight: 600;
+}
+.sess-row .meta { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .15rem; }
+.sess-row .acts { flex: 0 0 auto; }
+/* 从没登录过的 IP → 标黄，让人一眼看到"有个我没见过的地方在登" */
+.sess-row.is-new { background: #fff8e6; border-left: 3px solid #d9a520; }
+
+.pv-cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: .75rem; }
+.pv-col { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.pv-col h4 { padding: .45rem .7rem; background: var(--surface-2); border-bottom: 1px solid var(--line-soft); font-size: .8125rem; }
+.pv-col.after h4 { background: var(--green-bg); color: #12805a; }
+.pv-list { max-height: 16rem; overflow-y: auto; padding: .6rem .7rem; font-size: .8125rem; }
+.pv-row { display: flex; gap: .5rem; padding: .1rem 0; }
+.pv-row .r { flex: 0 0 1.75rem; font-family: Consolas, monospace; color: var(--ink-3); text-align: right; }
+.pv-row .n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-row .s { flex: 0 0 auto; font-family: Consolas, monospace; font-weight: 600; color: var(--blue); }
+
+/* ── 提示 ─────────────────────────────────────────────────────────────── */
+
+.toasts {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  width: min(92vw, 26rem);
+  pointer-events: none;
+}
+.toast {
+  padding: .7rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink-4);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-size: .875rem;
+}
+.toast.is-ok { border-left-color: var(--green); }
+.toast.is-bad { border-left-color: var(--red); }
+.toast.is-warn { border-left-color: var(--amber); }
+
+.empty { padding: 1.5rem 1rem; text-align: center; color: var(--ink-4); font-size: .875rem; }
+
+/* ══ 名单页：报名明细（点"报名 N 项"展开） ══ */
+.reg-toggle { font-variant-numeric: tabular-nums; }
+
+/* 展开行不要斑马纹，也别顶格 */
+tr.reg-detail > td {
+  background: var(--surface-2);
+  padding: .5rem .75rem .75rem;
+}
+.reg-box { display: flex; flex-direction: column; gap: .5rem; }
+.reg-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+
+/* 项目小标签：一排排铺开，窄屏自动换行 */
+.reg-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.reg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem .3rem .2rem .55rem;
+  border: 1px solid var(--blue-line);
+  background: var(--blue-bg);
+  color: var(--ink);
+  border-radius: .9rem;
+  font-size: .8125rem;
+  line-height: 1.5;
+}
+.reg-chip.is-relay { border-color: var(--amber-line); background: var(--amber-bg); }
+.reg-chip .n { color: var(--ink-3); font-size: .75rem; }
+.reg-chip .x {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 .3rem;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.reg-chip .x:hover { color: var(--red); background: var(--red-bg); }
+
+.reg-add { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.reg-add .select { max-width: 22rem; }
+
+/* ── 接力队伍（名单页里那块）────────────────────────────────────────────
+   一个接力项目一节，节里一行一个队：队名 / 警告 / 队员 / 操作按钮。
+   窄屏（手机）上队员那列会很长，用 flex-wrap 让它换行。 */
+.relay-group { padding: .5rem .9rem .75rem; border-bottom: 1px dashed var(--line); }
+.relay-group:last-child { border-bottom: 0; }
+.relay-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .35rem; }
+.relay-name { font-weight: 600; }
+.relay-sub { color: var(--ink-3); font-size: .8125rem; }
+.relay-empty { color: var(--ink-3); font-size: .8125rem; padding: .25rem 0 .25rem .2rem; }
+.relay-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  padding: .28rem .2rem;
+  border-radius: .35rem;
+}
+.relay-row:hover { background: var(--surface-2); }
+.relay-team { min-width: 8rem; font-weight: 500; }
+.relay-legs { flex: 1 1 12rem; color: var(--ink-2, var(--ink)); font-size: .8125rem; }
+/* 队员没填够时给个提示色，但不拦（现场常常先建队后补人） */
+.relay-legs.is-short { color: var(--amber, #b26a00); }
+.relay-warn {
+  font-size: .75rem;
+  color: var(--amber, #b26a00);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-line);
+  border-radius: .6rem;
+  padding: 0 .4rem;
+  white-space: nowrap;
+}
+.relay-acts { display: flex; align-items: center; gap: .3rem; margin-left: auto; }
+
+/* ══ 手机/窄屏（≤700px）：后台要能真的用来录成绩 ══
+   手机录入页已经去掉，老师就是拿手机打开 /admin 录的，
+   所以这里不是"能看就行"，得能填、能点、不横向溢出。 */
+@media (max-width: 700px) {
+  /* 顶栏：两行排开，标题别占太多 */
+  .topbar { flex-wrap: wrap; gap: .4rem; padding: .5rem .75rem; }
+  .topbar-title { font-size: 1.0625rem; }
+  .topbar-right { gap: .5rem; }
+  .meet { max-width: 100%; }
+  .stagebar { flex-wrap: wrap; gap: .4rem; padding: .5rem .75rem; }
+  .stagebar .stage-text { width: 100%; }
+
+  /* 页签横向可滚，不要换行成三四行把内容挤没 */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { flex: 0 0 auto; padding: .55rem .6rem; }
+
+  .content { padding: .75rem .6rem 2rem; }
+  .box-body { padding: .75rem .6rem; }
+
+  /* 录入表：表格自己横向滚，页面不许溢出 */
+  .entry-table { min-width: 32rem; }
+  table.entry-table th, table.entry-table td { padding: .45rem .4rem; font-size: .875rem; }
+  .entry-head { flex-direction: column; align-items: stretch; gap: .5rem; }
+  .entry-actions { flex-wrap: wrap; gap: .35rem; }
+  .state-btn { flex: 1 1 auto; }
+
+  /* 名单/成绩这类宽表同样交给 .table-wrap 滚 */
+  .table-wrap { overflow-x: auto; }
+  .grid { min-width: 34rem; }
+
+  /* 项目列表别占满整屏，给右边留位置 */
+  .ev-list { max-height: 46vh; }
+  /* 赛程页：项目名和"操作"各占一行 —— 否则窄屏上按钮被挤出容器外（真机 392px 实测） */
+  .ev-row .grow { flex: 1 1 100%; }
+  .ev-row .acts { flex: 1 1 auto; }
+  .ev-row { padding: .6rem .7rem; }
+
+  /* 【这里不要再动 .input-editable 的宽度】
+     我一开始看到名单页自检报「clipped input.input-editable 超出 20px」，
+     就想给可编辑输入框加 width:100% !important 让它缩。
+     那是**错的方向** —— 名单页本来就是"宽表横向滚"的设计：
+     table.grid 最小 34rem，外面套 .table-wrap 横滚，
+     姓名/号码这些输入框天生比格子窄一点、由表格自己滚，是**有意为之**。
+     那个 clipped 是"表格在窄屏里横向可滚"的正常表现，不是版面坏了。
+
+     真正该修的是**别让外层容器溢出**（下面那几条），
+     而不是把小格子里的输入框掰弯。 */
+  .input-editable { box-sizing: border-box; }
+
+  /* 报名明细在窄屏上铺得更开一点，别挤成一列长条 */
+  .reg-chip { font-size: .8125rem; }
+  .reg-add .select { max-width: 100%; }
+
+  /* 弹层：手机上留出边距，按钮不换行 */
+  .modal-box { max-width: calc(100vw - 1.5rem); }
+  .modal-foot { flex-wrap: wrap; gap: .4rem; }
+  .modal-foot .btn { flex: 1 1 auto; }
+}
+
+/* ══ 录入页左列表的"找项目"搜索框 ══
+   140 个项目靠手滚太慢；搜索只过滤列表，不影响右边录入区。 */
+.ev-search {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .5rem .6rem .35rem;
+  position: relative;
+}
+.ev-search .input { width: 100%; min-height: 2.1rem; font-size: .875rem; }
+.ev-search-clear {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-40%);
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 .3rem;
+  cursor: pointer;
+}
+.ev-search-clear:hover { color: var(--red); }
+.ev-search-count {
+  padding: 0 .75rem .35rem;
+  color: var(--ink-4);
+  font-size: .75rem;
+}

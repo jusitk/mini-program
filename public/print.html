@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成绩单打印 · 运动会</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="print.css">
+</head>
+<body class="print-page">
+
+  <div class="print-bar no-print">
+    <div class="pb-left">
+      <label class="field inline">
+        <span class="label">打印哪个项目</span>
+        <select class="select" id="selEvent"><option value="">（正在读取…）</option></select>
+      </label>
+      <label class="chk"><input type="checkbox" id="ckAll"> 全部已结束项目（每项一页）</label>
+      <label class="chk"><input type="checkbox" id="ckSign" checked> 显示签字栏</label>
+    </div>
+    <div class="pb-right">
+      <button class="btn" id="btnReload" type="button">刷新数据</button>
+      <button class="btn btn-primary" id="btnPrint" type="button">打印 / 另存为 PDF</button>
+      <a class="btn" href="/admin">返回后台</a>
+    </div>
+  </div>
+
+  <main id="printArea" class="print-area" data-allow-overflow="1">
+    <div class="empty">正在读取…</div>
+  </main>
+
+  <div id="layout-report" class="sr-only" aria-hidden="true"></div>
+
+  <script src="common.js"></script>
+  <script src="print.js"></script>
+</body>
+</html>
